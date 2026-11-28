@@ -32,6 +32,7 @@ const REQUIRED_DECISIONS = [
   'humanPhysiology',
   'humanMeals',
   'workSchedule',
+  'scheduleFatigue',
   'workforce',
   'immigration',
   'school',

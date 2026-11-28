@@ -59,6 +59,7 @@ export type DecisionKey =
   | 'humanPhysiology'
   | 'humanMeals'
   | 'workSchedule'
+  | 'scheduleFatigue'
   | 'school'
   | 'workforce'
   | 'immigration'
@@ -279,6 +280,14 @@ export const SIMULATION_DECISIONS = {
     writes: ['workSchedule'],
     scheduledFrom: 'simWorker/commands.ts "setWorkSchedule"; renderer/humans, hooks/useGameAudio, townHall and humanStatus read getWorkSchedule',
     testFile: 'tests/workSchedule.bounds.test.ts, tests/humanSchedule.defaultWindow.test.ts, tests/prisonFestivalWorkContinuity.test.ts, tests/audio.workDetect.test.ts',
+  },
+  scheduleFatigue: {
+    owner: 'scheduleFatigue.ts — recordScheduleWorkTick, recordPresentWorkTick, resolveDailyScheduleFatigue, getScheduleFatigue, getScheduleProductivityMultiplier, getWorkdayAttendance, getPracticedJobForCompletedDay, getWorkplacePresenceShare; dailyScheduleFatigue.ts — resolveDailyVillageScheduleFatigue, readVillageFatigue',
+    cadence: 'daily',
+    cadenceNote: 'Realtime humanTick records duty and witnessed presence through the shared counters. Midnight settles every eligible worker against workSchedule.STANDARD_WORK_DAY_HOURS (9), independent of occupation and the configured ordinary work window. Short shifts accelerate recovery; a nine-hour shift never increases schedule fatigue. Routine recovery is silent; at most one village-wide meaningful overtime warning per settlement. This is separate from human physiology; attendance, career dispatch and production provenance remain unchanged.',
+    writes: ['human.scheduleFatigue', 'human.scheduleWorkedTicksToday', 'human.scheduleWorkedSiteIdToday', 'human.scheduleWorkedJobToday', 'human.schedulePresentTicksToday', 'human.schedulePresentSiteIdToday', 'human.scheduleLastWorkedHours', 'human.scheduleLastWorkedSiteId', 'human.scheduleLastWorkedJob', 'eventLog (through logEvent)'],
+    scheduledFrom: 'humanTick.tickHumans → recordScheduleWorkTick / recordPresentWorkTick; tickLayerDaily midnight → resolveDailyVillageScheduleFatigue → resolveDailyScheduleFatigue',
+    testFile: 'tests/scheduleFatigue.test.ts, tests/dailyScheduleFatigue.test.ts, tests/careers.history.test.ts',
   },
   school: {
     owner: 'education.ts — syncSchoolAssignments, findSchoolForChild, schoolCapacity, isSchoolAge, getAssignedSchool, resolveSchoolSchedule, isSchoolTime (weekday 09–15), isAttendingSchool, buildSchoolRosters, recordChildSchoolTick, creditChildSchoolDay, applyEducationGraduation; summarizeSchooling (read-only adult education totals)',

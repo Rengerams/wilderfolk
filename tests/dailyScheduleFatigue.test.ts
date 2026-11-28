@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Entity, WorldState } from '../src/game/gameTypes';
+import { JobType } from '../src/game/gameTypes';
+import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
 import { resolveDailyVillageScheduleFatigue } from '../src/game/dailyScheduleFatigue';
 
@@ -17,6 +19,7 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
     id,
     alive: true,
+    age: HUMAN_ADULT_MIN_AGE,
     isJuvenile: false,
     faction: undefined,
     scheduleFatigue: 0,
@@ -49,16 +52,44 @@ describe('daily village schedule fatigue', () => {
     expect(settlers.every((settler) => settler.scheduleFatigue === 26)).toBe(true);
   });
 
-  it('spares a single settler from the output cost in words that name the preposition', () => {
+  it('recovers after a short shift without a routine Chronicle message', () => {
     const world = state();
     // 100 of fatigue against a 6-hour shift: short enough to recover well past the 8-point threshold.
     const settler = human(1, { scheduleFatigue: 100, scheduleWorkedTicksToday: 6 * TICKS_PER_HOUR });
 
     resolveDailyVillageScheduleFatigue(world, [settler], new Map());
 
+    expect(settler.scheduleFatigue).toBe(87);
+    expect(world.eventLog).toHaveLength(0);
+  });
+
+  it.each([5, 7, 9, 12])('uses the same nine-hour baseline with an ordinary %ih schedule', (ordinaryHours) => {
+    const world = state();
+    world.workSchedule = { startHour: 7, endHour: 7 + ordinaryHours };
+    const settlers = [
+      human(1, { job: JobType.PrisonGuard, scheduleFatigue: 30, scheduleWorkedTicksToday: 9 * TICKS_PER_HOUR }),
+      human(2, { job: JobType.Hotelier, scheduleFatigue: 30, scheduleWorkedTicksToday: 9 * TICKS_PER_HOUR }),
+      human(3, { job: JobType.Farmer, scheduleFatigue: 30, scheduleWorkedTicksToday: 7 * TICKS_PER_HOUR }),
+      human(4, { job: JobType.Doctor, scheduleFatigue: 30, scheduleWorkedTicksToday: 8 * TICKS_PER_HOUR }),
+    ];
+    resolveDailyVillageScheduleFatigue(world, settlers, new Map());
+    expect(settlers.map((settler) => settler.scheduleFatigue)).toEqual([26, 26, 20, 23]);
+    expect(world.eventLog).toHaveLength(0);
+  });
+
+  it('reports genuine overtime once while ignoring routine nine-hour workers', () => {
+    const world = state();
+    world.workSchedule = { startHour: 7, endHour: 14 };
+    const settlers = [
+      human(1, { job: JobType.PrisonGuard, scheduleWorkedTicksToday: 9 * TICKS_PER_HOUR }),
+      human(2, { job: JobType.Farmer, scheduleWorkedTicksToday: 11 * TICKS_PER_HOUR }),
+      human(3, { job: JobType.Builder, scheduleWorkedTicksToday: 12 * TICKS_PER_HOUR }),
+    ];
+    resolveDailyVillageScheduleFatigue(world, settlers, new Map());
+    expect(settlers.map((settler) => settler.scheduleFatigue)).toEqual([0, 16, 26]);
     expect(world.eventLog).toHaveLength(1);
-    expect(world.eventLog[0]?.message).toContain('Short shifts spared 1 settler from that output cost');
-    expect(world.eventLog[0]?.message).toContain('each worked 6.0h on average');
+    expect(world.eventLog[0]?.message).toContain('reduced work output for 2 settlers');
+    expect(world.eventLog[0]?.message).toContain('11.5h on average');
   });
 
   it('applies off-shift zero-hour recovery without adding a work-related chronicle event', () => {

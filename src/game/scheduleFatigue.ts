@@ -1,6 +1,6 @@
-import type { Entity, WorldState } from './gameTypes';
+import type { Entity } from './gameTypes';
 import { TICKS_PER_HOUR } from './dayCycleClock';
-import { getWorkSchedule } from './workSchedule';
+import { STANDARD_WORK_DAY_HOURS } from './workSchedule';
 import { isPlayerHuman } from './playerHuman';
 import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
 import { JobType } from './gameTypes';
@@ -8,9 +8,6 @@ import { JobType } from './gameTypes';
 const MAX_SCHEDULE_FATIGUE = 100;
 /** The worst output a fully fatigued crew can fall to — the floor of the penalty, not a % of energy. */
 export const MIN_SCHEDULE_PRODUCTIVITY = 0.65;
-/** The normal work day, in hours (owner: "normal work day is 9 hrs"). A settler working exactly
- *  this many hours is fatigue-neutral, and `workSchedule.STANDARD_PRODUCTION_WORK_HOURS` matches it. */
-const NEUTRAL_WORK_HOURS = 9;
 const FATIGUE_PER_EXCESS_HOUR = 10;
 const RECOVERY_PER_SHORT_HOUR = 3;
 const BASE_DAILY_RECOVERY = 4;
@@ -65,31 +62,19 @@ export function recordPresentWorkTick(
 
 /**
  * Resolve a settler's fatigue for the day. This is the end-of-day settle, so it does not narrow on
- * `alive`, age or `faction` the way the per-tick recorders do.
+ * `alive`, age or `faction` the way the per-tick recorders do. All jobs use the same fixed
+ * nine-hour baseline; the configured ordinary work window never changes recovery or overtime.
  */
-/**
- * The standard work window's length, capped at the neutral day — the loop-invariant half of
- * `resolveDailyScheduleFatigue`. Exported so a pass resolving many settlers derives it once.
- */
-export function getScheduleTargetHours(state: Pick<WorldState, 'workSchedule'>): number {
-  const schedule = getWorkSchedule(state);
-  return Math.min(NEUTRAL_WORK_HOURS, schedule.endHour - schedule.startHour);
-}
-
 export function resolveDailyScheduleFatigue(
   entity: Pick<Entity, 'scheduleFatigue' | 'scheduleWorkedTicksToday' | 'schedulePresentTicksToday'
     | 'schedulePresentSiteIdToday' | 'scheduleLastWorkedHours'
     | 'scheduleWorkedSiteIdToday' | 'scheduleLastWorkedSiteId'
     | 'scheduleWorkedJobToday' | 'scheduleLastWorkedJob'>,
-  state: Pick<WorldState, 'workSchedule'>,
-  /** Pre-derived `getScheduleTargetHours(state)` for a caller resolving many settlers in one pass. */
-  targetHoursForPass?: number,
 ): { workedHours: number; fatigueBefore: number; fatigueAfter: number } {
   const workedHours = (entity.scheduleWorkedTicksToday ?? 0) / TICKS_PER_HOUR;
-  const targetHours = targetHoursForPass ?? getScheduleTargetHours(state);
   const fatigueBefore = getScheduleFatigue(entity);
-  const excess = Math.max(0, workedHours - targetHours);
-  const rest = Math.max(0, targetHours - workedHours);
+  const excess = Math.max(0, workedHours - STANDARD_WORK_DAY_HOURS);
+  const rest = Math.max(0, STANDARD_WORK_DAY_HOURS - workedHours);
   const recovery = BASE_DAILY_RECOVERY + rest * RECOVERY_PER_SHORT_HOUR;
   const fatigueAfter = Math.max(0, Math.min(MAX_SCHEDULE_FATIGUE, fatigueBefore + excess * FATIGUE_PER_EXCESS_HOUR - recovery));
   entity.scheduleFatigue = fatigueAfter;
