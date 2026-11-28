@@ -87,25 +87,38 @@ function affairPairLead(a: Entity, b: Entity): { lead: Entity; other: Entity } {
 export function reconcileAffairPartner(entity: Entity, entityById: Map<number, Entity>): void {
   if (!entity.alive) {
     entity.affairPartnerId = undefined;
+    entity.affairCandidateId = undefined;
     entity.affairProgress = 0;
     entity.lastAffairSiteDay = undefined;
     entity.lastAffairSiteX = undefined;
     entity.lastAffairSiteY = undefined;
     return;
   }
-  if (entity.affairPartnerId == null) return;
-  const lover = getLivingEntity(entity.affairPartnerId, entityById);
-  if (
-    !lover ||
-    lover.affairPartnerId !== entity.id ||
-    lover.prisonBuildingId != null ||
-    entity.prisonBuildingId != null
-  ) {
-    entity.affairPartnerId = undefined;
+  if (entity.affairPartnerId != null) {
+    const lover = getLivingEntity(entity.affairPartnerId, entityById);
+    if (!lover || lover.affairPartnerId !== entity.id ||
+      lover.prisonBuildingId != null || entity.prisonBuildingId != null) {
+      entity.affairPartnerId = undefined;
+      entity.affairProgress = 0;
+      entity.lastAffairSiteDay = undefined;
+      entity.lastAffairSiteX = undefined;
+      entity.lastAffairSiteY = undefined;
+    }
+    entity.affairCandidateId = undefined;
+    return;
+  }
+
+  // Pending progress belongs to exactly one mutual candidate. Legacy saves could carry
+  // unbound 100% progress; that is not evidence of an affair and must not transfer to strangers.
+  const candidate = entity.affairCandidateId == null
+    ? undefined : getLivingEntity(entity.affairCandidateId, entityById);
+  if (!candidate || candidate.affairCandidateId !== entity.id ||
+    candidate.affairPartnerId != null || entity.prisonBuildingId != null ||
+    candidate.prisonBuildingId != null || entity.courtshipPartnerId != null ||
+    candidate.courtshipPartnerId != null ||
+    (!isMarriedOrExpecting(entity) && !isMarriedOrExpecting(candidate))) {
+    entity.affairCandidateId = undefined;
     entity.affairProgress = 0;
-    entity.lastAffairSiteDay = undefined;
-    entity.lastAffairSiteX = undefined;
-    entity.lastAffairSiteY = undefined;
   }
 }
 
@@ -299,7 +312,9 @@ export function recordAffairTrystSite(
   buildingById?: Map<number, Building>,
   entityById?: Map<number, Entity>,
 ): void {
-  if (!shouldLeadAffairPair(entity, paramour)) return;
+  // Only an eligible married caller initiates an affair with a single paramour.
+  // Two married lovers still use the stable ID lead to avoid duplicate receipts.
+  if (isMarriedOrExpecting(paramour) && !shouldLeadAffairPair(entity, paramour)) return;
   const siteDay = getColonyDay(state);
   const trystBuilding = buildingById && entityById
     ? getAffairTrystBuilding(entity, paramour, entityById, buildingById)
@@ -678,6 +693,10 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
   if (entity.prisonBuildingId != null || target.prisonBuildingId != null) return false;
   if (!entity.gender || target.gender === entity.gender || target.id === entity.id) return false;
   if (target.id === entity.partnerId || entity.id === target.partnerId) return false;
+  // A committed courtship excludes simultaneous secret-affair pursuit.
+  if (entity.courtshipPartnerId != null || target.courtshipPartnerId != null) return false;
+  if (entity.affairCandidateId != null && entity.affairCandidateId !== target.id) return false;
+  if (target.affairCandidateId != null && target.affairCandidateId !== entity.id) return false;
   if (entity.age < HUMAN_ADULT_MIN_AGE || target.age < HUMAN_ADULT_MIN_AGE) return false;
   if (target.age >= HUMAN_MAX_LIFESPAN_YEARS) return false;
   if (entity.affairPartnerId != null && target.id !== entity.affairPartnerId) return false;
@@ -688,8 +707,10 @@ export function isValidAffairTarget(entity: Entity, target: Entity, tick: number
 
 function clearAffairPair(a: Entity, b: Entity): void {
   a.affairPartnerId = undefined;
+  a.affairCandidateId = undefined;
   a.affairProgress = 0;
   b.affairPartnerId = undefined;
+  b.affairCandidateId = undefined;
   b.affairProgress = 0;
 }
 
@@ -1248,6 +1269,7 @@ export /**
  */
 function isEligibleToCourt(entity: Entity): boolean {
   return isAvailableForRomance(entity)
+    && entity.affairPartnerId == null && entity.affairCandidateId == null
     && entity.age >= HUMAN_ADULT_MIN_AGE && entity.age < HUMAN_MAX_LIFESPAN_YEARS
     && (entity.courtshipCooldownDays ?? 0) <= 0;
 }
@@ -1508,7 +1530,9 @@ export function tryDailyAffairEncounter(
   );
   if (!paramour) return;
   if (!isValidAffairTrystSite(entity, paramour, entityById, buildingById, AFFAIR_DAILY_TRYST_RADIUS)) return;
-  if (!shouldLeadAffairPair(entity, paramour)) return;
+  // The married participant initiates for a single paramour, regardless of entity IDs.
+  // If both are married, the lower ID alone owns this day's attempt.
+  if (isMarriedOrExpecting(paramour) && !shouldLeadAffairPair(entity, paramour)) return;
 
   const R = Relationship;
   const churchPenalty = churchStrength > 0
@@ -1531,6 +1555,16 @@ export function tryDailyAffairEncounter(
   const dailyChance = baseChance * churchPenalty * socialMult;
   if (personDayRoll(entity.id, state.tick, 610) >= dailyChance) return;
 
+  // The daily encounter is the sole pending-pair and progress writer. Every new
+  // pair starts from zero; a previous suitor's progress cannot be inherited.
+  if (entity.affairPartnerId == null && entity.affairCandidateId !== paramour.id) {
+    entity.affairCandidateId = paramour.id;
+    entity.affairProgress = 0;
+  }
+  if (paramour.affairPartnerId == null && paramour.affairCandidateId !== entity.id) {
+    paramour.affairCandidateId = entity.id;
+    paramour.affairProgress = 0;
+  }
   const bump = Math.round(
     (R.AFFAIR_PROGRESS_BUMP_MIN + Math.floor(seededRandomForRun(`affair-bump:${entity.id}:${state.tick}`) * R.AFFAIR_PROGRESS_BUMP_SPAN)) * socialMult,
   );
@@ -1550,6 +1584,8 @@ export function tryDailyAffairEncounter(
   ) {
     entity.affairPartnerId = paramour.id;
     paramour.affairPartnerId = entity.id;
+    entity.affairCandidateId = undefined;
+    paramour.affairCandidateId = undefined;
     entity.affairProgress = R.AFFAIR_PROGRESS_MAX;
     paramour.affairProgress = R.AFFAIR_PROGRESS_MAX;
     recordRelationshipDiagnostic('affairsEstablished');
@@ -1585,12 +1621,14 @@ export function tryCompleteCourtshipMarriage(  state: WorldState,
   entity.courtshipPartnerId = undefined;
   entity.courtshipProgress = 0;
   entity.affairPartnerId = undefined;
+  entity.affairCandidateId = undefined;
   entity.affairProgress = 0;
   partner.relationshipStatus = 'married';
   partner.partnerId = entity.id;
   partner.courtshipPartnerId = undefined;
   partner.courtshipProgress = 0;
   partner.affairPartnerId = undefined;
+  partner.affairCandidateId = undefined;
   partner.affairProgress = 0;
 
   createDeathParticles(
