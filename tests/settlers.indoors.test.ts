@@ -154,7 +154,7 @@ describe('settlers inside buildings', () => {
       writeFileSync(join(fixtureDirectory, 'indoors.json'), JSON.stringify(buildSaveData(world, view)));
     }
     patient.pregnant = false;
-    patient.energy = patient.maxEnergy;
+    patient.needs!.stamina = 100;
     world.paused = false;
     gameTick(world);
     expect(patient.indoorBuildingId).toBeUndefined();
@@ -246,7 +246,7 @@ describe('settlers inside buildings', () => {
     });
     const porch = homeStandPosition(home, residentId!);
     const person = human(residentId!, {
-      x: porch.x - 40, y: porch.y, residenceBuildingId: home.id, energy: 0, maxEnergy: 100,
+      x: porch.x - 40, y: porch.y, residenceBuildingId: home.id,
       needs: { nutrition: 80, rest: 70, stamina: 0, severeHungerTicks: 0, breakUntilRecovered: true },
     });
     world.entities = [person];

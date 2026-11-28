@@ -4,6 +4,7 @@ import { HUMAN_ADULT_MIN_AGE, NIGHT_END, NIGHT_START } from '../daycycleconstant
 import { evaluateAptitudeInfluence } from '../personality/traitEvaluation';
 
 export const HUMAN_NEEDS = {
+  INITIAL_STAMINA: 80,
   NUTRITION_BASE_LOSS_PER_SIM_HOUR: 1.2,
   NUTRITION_WORK_EXTRA_PER_SIM_HOUR: 0.16,
   NUTRITION_WALK_EXTRA_PER_SIM_HOUR: 0.12,
@@ -48,13 +49,23 @@ export function hasNearbyWell(entity: Pick<Entity, 'x' | 'y'>, wells: readonly B
 const bounded = (n: number, fallback: number): number =>
   Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : fallback;
 
-export function initialHumanNeeds(energy: number, maxEnergy: number): HumanNeedsState {
-  return { nutrition: 80, rest: 85, stamina: maxEnergy > 0 && Number.isFinite(maxEnergy)
-    ? bounded(energy / maxEnergy * 100, 80) : 80, severeHungerTicks: 0 };
+/** The one clamped runtime stamina mutation; normalization constructs a new state. */
+function setHumanStamina(needs: HumanNeedsState, stamina: number): void {
+  needs.stamina = bounded(stamina, 0);
 }
 
-export function normalizeHumanNeeds(entity: Entity): HumanNeedsState {
-  const fallback = initialHumanNeeds(entity.energy, entity.maxEnergy);
+/** Creation uses native stamina; the old positional factory input is converted at its boundary. */
+export function initialHumanNeeds(stamina: number = HUMAN_NEEDS.INITIAL_STAMINA): HumanNeedsState {
+  return { nutrition: 80, rest: 85, stamina: bounded(stamina, HUMAN_NEEDS.INITIAL_STAMINA), severeHungerTicks: 0 };
+}
+
+/** Compatibility conversion for saved pre-needs humans and the historical spawn initializer only. */
+export function legacyHumanNeeds(energy?: number, maxEnergy?: number): HumanNeedsState {
+  return initialHumanNeeds(typeof energy === 'number' && typeof maxEnergy === 'number'
+    && maxEnergy > 0 && Number.isFinite(maxEnergy) ? energy / maxEnergy * 100 : HUMAN_NEEDS.INITIAL_STAMINA);
+}
+
+export function normalizeHumanNeeds(entity: Pick<Entity, 'needs'>, fallback = initialHumanNeeds()): HumanNeedsState {
   const old = entity.needs;
   const result: HumanNeedsState = {
     nutrition: bounded(old?.nutrition ?? fallback.nutrition, fallback.nutrition),
@@ -118,7 +129,7 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     if (obs.working) staminaRate /= evaluateAptitudeInfluence(entity, 'labor').factor;
     if (obs.hasWell) staminaRate *= HUMAN_NEEDS.WELL_STAMINA_DRAIN_MULTIPLIER;
   }
-  needs.stamina = bounded(needs.stamina + staminaRate * hours, 0);
+  setHumanStamina(needs, needs.stamina + staminaRate * hours);
   // Intent latching belongs to the single physiology mutator. Read-only status
   // queries must never modify saved human state or change the next sim tick.
   if (needs.breakUntilRecovered === true) {
@@ -144,8 +155,6 @@ export function advanceHumanNeeds(entity: Entity, obs: HumanNeedsObservation): H
     needs.sleepRecoveryUntilTick = obs.tick + HUMAN_NEEDS.RECOVERY_SLEEP_HOURS * TICKS_PER_HOUR;
   }
   needs.lastAdvancedTick = obs.tick;
-  // One-way compatibility read for legacy social and combat consumers.
-  entity.energy = entity.maxEnergy * needs.stamina / 100;
   return needs;
 }
 
@@ -160,30 +169,22 @@ export function creditHumanNutritionFromFood(entity: Entity, foodUnits: number):
   if (needs.nutrition > HUMAN_NEEDS.NUTRITION_STARVING) needs.severeHungerTicks = 0;
 }
 
-/** Convert a legacy-sized stamina effect without writing a second energy owner. */
-export function adjustHumanStaminaFromEnergy(entity: Entity, energyPoints: number): void {
-  if (!Number.isFinite(energyPoints) || energyPoints === 0) return;
+/** Apply a native stamina percentage-point effect; no legacy capacity conversion. */
+export function adjustHumanStamina(entity: Entity, staminaPoints: number): void {
+  if (!Number.isFinite(staminaPoints) || staminaPoints === 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
-  needs.stamina = bounded(needs.stamina + energyPoints / Math.max(1, entity.maxEnergy) * 100, 0);
-  entity.energy = entity.maxEnergy * needs.stamina / 100;
+  setHumanStamina(needs, needs.stamina + staminaPoints);
 }
 
-/**
- * Player stamina is the authoritative reserve; `energy` is only the legacy mirror for a human
- * saved before `needs` existed. Captives and nonhumans do not use this helper.
- */
-export function getHumanStaminaRatio(entity: Entity): number {
-  const stamina = entity.needs?.stamina;
-  if (typeof stamina === 'number' && Number.isFinite(stamina)) {
-    return Math.max(0, Math.min(1, stamina / 100));
-  }
-  return entity.maxEnergy > 0 ? Math.max(0, Math.min(1, entity.energy / entity.maxEnergy)) : 0;
+/** Read only native stamina. Missing runtime needs use the same neutral initializer, never old energy. */
+export function getHumanStaminaRatio(entity: Pick<Entity, 'needs'>): number {
+  return bounded(entity.needs?.stamina ?? HUMAN_NEEDS.INITIAL_STAMINA, HUMAN_NEEDS.INITIAL_STAMINA) / 100;
 }
 
 /** Resume at the human-form tick, without charging the Moon Howler night again. */
 export function rebaseHumanNeedsClockAfterFormRestore(entity: Entity, tick?: number): void {
-  if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;
   const needs = entity.needs ?? normalizeHumanNeeds(entity);
+  if (tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return;
   needs.lastAdvancedTick = Math.max(0, tick - 1);
 }
 

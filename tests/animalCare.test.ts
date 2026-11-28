@@ -88,7 +88,7 @@ describe('A1 post-taming animal care', () => {
     expect(getAnimalCareStatus(state)).toBe('warning');
   });
 
-  it('gives the owner an energy bonus when animals are fed', () => {
+  it('gives the owner a native stamina bonus when animals are fed', () => {
     const state = initGame({ size: MapSize.Medium, seed: 1 });
     state.entities.push({
       id: state.nextEntityId++,
@@ -98,6 +98,7 @@ describe('A1 post-taming animal care', () => {
       alive: true,
       energy: 50,
       maxEnergy: 100,
+      needs: { nutrition: 80, rest: 85, stamina: 50 },
     } as never);
     const ownerId = state.entities[state.entities.length - 1].id;
     addTamed(state);
@@ -105,8 +106,8 @@ describe('A1 post-taming animal care', () => {
     state.resources.food = 50;
     setColonyDay(state, 10);
     tickAnimalCare(state);
-    expect(state.entities.find((e) => e.id === ownerId)?.energy).toBe(58);
-    expect(state.entities.find((e) => e.id === ownerId)?.needs?.stamina).toBeCloseTo(58);
+    expect(state.entities.find((e) => e.id === ownerId)?.energy).toBe(50);
+    expect(state.entities.find((e) => e.id === ownerId)?.needs?.stamina).toBeCloseTo(51.6);
   });
 
   it('does nothing without tamed animals', () => {

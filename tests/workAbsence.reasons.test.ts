@@ -20,6 +20,8 @@ import { countWorkingAndIdleSettlers } from '../src/game/workforceSummary';
 import { getBuildingConfig } from '../src/game/buildingConfig';
 import {
   getSettlerWorkReason,
+  resolveShift,
+  resolveWorkPresence,
   getUnstaffedPostNote,
   getWorkplaceRosterReasons,
   workplaceDutyLabel,
@@ -87,8 +89,9 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     y: 0,
     vx: 0,
     vy: 0,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30,
     isJuvenile: false,
     ...overrides,
@@ -107,6 +110,28 @@ function postedFarmer(farm: Building, overrides: Partial<Entity> = {}): Entity {
 }
 
 describe('the reason a settler is not at their post', () => {
+  it('shares local barracks patrol presence and the inspector verdict without a barracks visit', () => {
+    const barracks = building(10, BuildingType.Barracks, { occupants: [1] });
+    const guard = settler(1, { job: JobType.Soldier, workerBuildingId: barracks.id, x: 300, y: 250 });
+    const state = world(workdayTick(10), { entities: [guard], buildings: [barracks] });
+    const shift = resolveShift(state, guard, barracks, 10);
+    expect(shift.patrolAssignment).toBe(true);
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBe('patrol');
+    expect(getSettlerWorkReason(state, guard)).toEqual({ code: 'working', label: 'Patrolling' });
+    expect(getHumanActivityProjection(state, guard)).toMatchObject({ activity: 'Patrolling', target: null });
+    expect(explainHumanMovement(state, guard.id).stops.some((stop) => stop.buildingId === barracks.id)).toBe(false);
+    guard.raidDeploymentId = 'raid-1';
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBeUndefined();
+    guard.raidDeploymentId = undefined;
+    state.entities.push(settler(2, { type: EntityType.Werewolf, moonHowlerCursed: true, x: guard.x, y: guard.y }));
+    expect(resolveWorkPresence(state, guard, barracks, shift)).toBeUndefined();
+    expect(getSettlerWorkReason(state, guard).label).toBe('Patrol interrupted');
+    state.entities.pop();
+    state.tick = workdayTick(18);
+    expect(resolveWorkPresence(state, guard, barracks, resolveShift(state, guard, barracks, 18))).toBeUndefined();
+  });
+
+
   it.each([...APPRENTICESHIP_BUILDING_TYPES])('recognizes a %s apprentice as working without adding a roster seat', (type) => {
     const job = BUILDING_JOB_TYPES[type]!;
     const label = getBuildingConfig(type).label;
@@ -333,7 +358,7 @@ describe('the reason a settler is not at their post', () => {
   });
 
   it('says ill, in the hospital owner’s own word, for a settler below the care threshold', () => {
-    const worker = settler(1, { energy: 10 });
+    const worker = settler(1, { needs: { nutrition: 80, rest: 80, stamina: 10 } });
     const state = world(workdayTick(11), { entities: [worker] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({ code: 'exhausted', label: 'Exhausted' });
@@ -342,7 +367,9 @@ describe('the reason a settler is not at their post', () => {
   it('says working for a tired settler who is visibly at the post', () => {
     const farm = building(1, BuildingType.Farm, { occupants: [1] });
     const stand = humanBuildingTarget(farm, 1);
-    const worker = postedFarmer(farm, { x: stand.x, y: stand.y, energy: 30 });
+    const worker = postedFarmer(farm, {
+      x: stand.x, y: stand.y, needs: { nutrition: 80, rest: 85, stamina: 30 },
+    });
     const state = world(workdayTick(10), { entities: [worker], buildings: [farm] });
 
     expect(getSettlerWorkReason(state, worker)).toEqual({
@@ -369,7 +396,7 @@ describe('the reason a settler is not at their post', () => {
   it('says going to hospital, not resting, from the 85% threshold when a ward is staffed', () => {
     const ward = building(10, BuildingType.Hospital, { occupants: [9] });
     const worker = settler(1, {
-      energy: 90,
+      needs: { nutrition: 80, rest: 85, stamina: 90 },
       pregnant: true,
       pregnancyProgress: PREGNANCY_TICKS * 0.85,
       x: 900,

@@ -42,8 +42,9 @@ function settler(
     type: EntityType.Human,
     x: 300,
     y: 300,
-    energy: 200,
-    maxEnergy: 200,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 25,
     birthYear: 0,
     birthMonth: 0,
@@ -92,13 +93,13 @@ function courtFrame(
 ): CourtFrame {
   const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
   const a = settler(1, 'female', genomeV2, {
-    energy: options.energy ?? 200,
+    needs: { nutrition: 100, rest: 100, stamina: (options.energy ?? 200) / 2 },
     vx: options.initialSpeed ?? 0,
     ...(options.established ? { courtshipPartnerId: PARTNER_ID, courtshipProgress: 47 } : {}),
     ...(options.spouse ? { partnerId: PARTNER_ID, relationshipStatus: 'married' as const } : {}),
   });
   const b = settler(PARTNER_ID, options.partnerGender ?? 'male', genomeFrom(), {
-    x: 300 + (options.distance ?? 0), energy: options.partnerEnergy ?? 200,
+    x: 300 + (options.distance ?? 0), needs: { nutrition: 100, rest: 100, stamina: (options.partnerEnergy ?? 200) / 2 },
     ...(options.established ? { courtshipPartnerId: 1, courtshipProgress: 47 } : {}),
   });
   state.entities = [a, b];

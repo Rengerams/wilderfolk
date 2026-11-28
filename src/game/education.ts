@@ -9,7 +9,7 @@ import { addNotification } from './simEffects';
 import { citizenFullName } from './citizenId';
 import { logEvent } from './eventLog';
 import { isPlayerHuman } from './playerHuman';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
 import { isAtBuildingReach } from './buildingAccess';
 import { commuteDistanceFromResidence } from './simulation/humanMovement';
@@ -483,9 +483,9 @@ export function applyEducationGraduation(state: WorldState, entity: Entity): voi
   if (entity.educated) return;
 
   entity.educated = true;
-  const energyBonus = tier === 3 ? 10 : tier === 2 ? 6 : 4;
-  entity.maxEnergy = Math.min(500, entity.maxEnergy + energyBonus);
-  adjustHumanStaminaFromEnergy(entity, energyBonus * 0.5);
+  // Graduation does not change the fixed 0–100 physiological capacity.
+  const staminaBonus = tier === 3 ? 1 : tier === 2 ? 0.6 : 0.4;
+  adjustHumanStamina(entity, staminaBonus);
 
   const label = citizenFullName(entity);
   const detail =

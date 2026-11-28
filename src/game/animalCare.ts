@@ -10,7 +10,7 @@ import { spendFood } from './economyLedger';
 import { ensureEntityByIdMap } from './entityIndex';
 import { Human, Animal } from './gameConstants';
 import { isPlayerHuman } from './playerHuman';
-import { adjustHumanStaminaFromEnergy } from './simulation/humanPhysiology';
+import { adjustHumanStamina } from './simulation/humanPhysiology';
 
 const FLAG_FED_DAY = 'animal_care_fed_day';
 const FLAG_STATUS = 'animal_care_status';
@@ -28,7 +28,8 @@ const STATUS_CODES: Record<AnimalCareStatus, number> = {
 /** Daily ration for a tamed animal, derived from authoritative diet settings. */
 const ANIMAL_DAILY_FOOD = Human.DAILY_FOOD_CONSUMPTION * Animal.FOOD_RATIO_OF_HUMAN;
 /** Energy restored to a tamed animal's owner each fed day (per animal). */
-const TAMED_ANIMAL_OWNER_ENERGY_BONUS = 8;
+const TAMED_ANIMAL_OWNER_STAMINA_BONUS = 1.6;
+const FOREIGN_PET_OWNER_ENERGY_BONUS = 8;
 
 export function countTamedAnimals(state: WorldState): number {
   // A pet is a living animal with an owner, full stop: removal of the owner clears `tamedBy` at
@@ -76,7 +77,7 @@ export function tickAnimalCare(state: WorldState): void {
     if (previousStatus === 'shortage' || previousStatus === 'warning') {
       addNotification(state, '🐾 Animals fed again', 'The tamed animals are back on rations.', 'success');
     }
-    // A fed pet gives its owner a small daily energy lift. The canonical id → living-entity map is
+    // A fed pet gives its owner a small daily stamina lift (foreign owners retain their separate energy model). The canonical id → living-entity map is
     // read first, with the entity scan kept as fallback for unindexed spawns.
     const entityById = ensureEntityByIdMap(state);
     for (const animal of state.entities) {
@@ -86,10 +87,10 @@ export function tickAnimalCare(state: WorldState): void {
         state.entities.find((h) => h.alive && h.type === EntityType.Human && h.id === animal.tamedBy);
       if (owner?.alive && owner.type === EntityType.Human) {
         if (isPlayerHuman(owner)) {
-          adjustHumanStaminaFromEnergy(owner, TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+          adjustHumanStamina(owner, TAMED_ANIMAL_OWNER_STAMINA_BONUS);
         } else {
           // Preserve legacy energy semantics for foreign owners.
-          owner.energy = Math.min(owner.maxEnergy, owner.energy + TAMED_ANIMAL_OWNER_ENERGY_BONUS);
+          owner.energy = Math.min(owner.maxEnergy, owner.energy + FOREIGN_PET_OWNER_ENERGY_BONUS);
         }
       }
     }

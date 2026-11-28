@@ -14,8 +14,9 @@ function settler(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     name: `Settler${id}`,
     alive: true,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     ...overrides,
   } as Entity;
 }

@@ -104,6 +104,8 @@ describe('free-roaming hunting food flow', () => {
   it('records the food that actually entered storage in the economy ledger', () => {
     const { state, ctx, hunter, deer } = huntFixture();
     const foodBefore = state.resources.food;
+    const needsBefore = { ...hunter.needs! };
+    const energyBefore = hunter.energy;
 
     tickHumanHunting(
       state,
@@ -124,12 +126,31 @@ describe('free-roaming hunting food flow', () => {
     const added = state.resources.food - foodBefore;
     expect(added).toBeGreaterThan(0);
     expect(state.economyLedger?.produced.hunting).toBe(added);
+    expect(hunter.needs).toEqual(needsBefore);
+    expect(hunter.energy).toBe(energyBefore);
+  });
+
+  it('does not restore stamina or nutrition after a rabbit kill either', () => {
+    const { state, hunter, deer } = huntFixture();
+    state.entities = state.entities.filter((entity) => entity.id !== deer.id);
+    const rabbit = createEntity(EntityType.Rabbit, hunter.x, hunter.y + 2, state.nextEntityId++);
+    state.entities.push(rabbit);
+    const ctx = contextFor(state);
+    const before = { ...hunter.needs! };
+    const energy = hunter.energy;
+    tickHumanHunting(state, ctx, hunter, SPECIES_CONFIG[EntityType.Human],
+      true, false, false, false, ctx.byType, ctx.mobileGrid, ctx.entityById, false);
+    expect(rabbit.alive).toBe(false);
+    expect(state.resources.food).toBeGreaterThan(0);
+    expect(state.economyLedger?.produced.hunting).toBe(state.resources.food);
+    expect(hunter.needs).toEqual(before);
+    expect(hunter.energy).toBe(energy);
   });
 
   it.each([true, false])('does not restore stamina or energy after a kill (needs=%s)', (hasNeeds) => {
     const { state, ctx, hunter, deer } = huntFixture();
     if (!hasNeeds) hunter.needs = undefined;
-    hunter.energy = hunter.maxEnergy * 0.4;
+    hunter.energy = 200; // contradictory legacy value must not be changed by a kill
     const before = hunter.needs ? { ...hunter.needs } : undefined;
     const energyBefore = hunter.energy;
 

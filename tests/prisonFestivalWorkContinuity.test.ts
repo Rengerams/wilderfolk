@@ -27,8 +27,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 150,
     y: 60,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -230,6 +231,27 @@ it('retains an already higher Fisher skill when reconciling legacy fishing crews
   expect(fisher.job).toBe(JobType.Fisher);
   expect(fisher.skills?.fisher).toBe(23);
   expect(fisher.skills?.hunter).toBe(12);
+});
+
+it('records local soldier patrol and apprentice attendance through the same work counters', () => {
+  const barracks = building(10, BuildingType.Barracks, 750, 300, [1]);
+  const farm = building(11, BuildingType.Farm, 300, 200, [2]);
+  const soldier = human(1, { job: JobType.Soldier, workerBuildingId: barracks.id, x: 100, y: 100 });
+  const master = human(2, { job: JobType.Farmer, workerBuildingId: farm.id, apprenticeId: 3,
+    skills: { [JobType.Farmer]: 80 }, x: 300, y: 221 });
+  const apprentice = human(3, { apprenticeOfId: 2, workerBuildingId: undefined, x: 300, y: 221 });
+  const state = worldState([soldier, master, apprentice], [barracks, farm], null);
+  state.tick = 10 * TICKS_PER_HOUR;
+  expect(isAtBuildingReach(soldier, barracks)).toBe(false);
+  gameTick(state);
+  expect(soldier.scheduleWorkedTicksToday).toBe(1);
+  expect(soldier.schedulePresentTicksToday).toBe(1);
+  expect(soldier.schedulePresentSiteIdToday).toBe(barracks.id);
+  expect(apprentice.scheduleWorkedTicksToday).toBe(1);
+  expect(apprentice.schedulePresentTicksToday).toBe(1);
+  expect(apprentice.scheduleWorkedJobToday).toBe(JobType.Farmer);
+  expect(apprentice.schedulePresentSiteIdToday).toBe(farm.id);
+  expect(farm.occupants).toEqual([master.id]);
 });
 
 describe('a prison is open 24 hours', () => {

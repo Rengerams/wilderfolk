@@ -72,7 +72,7 @@ export type HumanActivityProjection = {
     onShift: boolean;
   };
   home: { id: number; label: string } | null;
-  workplace: { id: number; label: string; apprenticeship?: boolean } | null;
+  workplace: { id: number; label: string; apprenticeship?: boolean; patrol?: true } | null;
   target: HumanActivityTarget | null;
   blockedReason: string | null;
   /** Why this settler is, or is not, at their post — the work-absence owner's verdict. */
@@ -111,7 +111,8 @@ export function getHumanActivityStatus(
   const hourOfDay = getHourOfDay(state.tick);
   const festivalActive = state.festival?.active;
   const { workplace, trainingSite } = assignment;
-  const onWorkSchedule = !entity.isJuvenile && workplace != null && resolveShift(state, entity, workplace, hourOfDay).onShift;
+  const shift = resolveShift(state, entity, workplace, hourOfDay);
+  const onWorkSchedule = !entity.isJuvenile && workplace != null && shift.onShift;
   // The verdict is the simulation owner's, so the label cannot drift from what the settler does.
   if (isFestivalGatherer(hourOfDay, festivalActive, onWorkSchedule || workReason.code === 'walking-to-work' || schoolSchedule.onShift || schoolSchedule.commuteDue, entity.job === JobType.Innkeeper)) {
     return 'Gathering at festival';
@@ -179,12 +180,11 @@ export function getHumanActivityStatus(
   // Assigned workplace during the configured work shift. Commuting is reported only on the
   // movement owner's evidence; being far from the post is not travel.
   if (workplace && onWorkSchedule) {
+    if (shift.patrolAssignment) return workReason.label;
     const label = labelFor(workplace);
     if (trainingSite) return workReason.code === 'working'
       ? workReason.label : `Away from apprenticeship at ${label}`;
-    if (isAtBuildingReach(entity, workplace) || entity.indoorBuildingId === workplace.id) {
-      return `Working at ${label}`;
-    }
+    if (workReason.code === 'working') return workReason.label;
     return `Away from ${label}`;
   }
 
@@ -244,7 +244,7 @@ export function getHumanActivityProjection(
       return { kind: 'school', label: labelFor(school), buildingId: school.id, ...buildingAccessPoint(school) };
     }
     const onWorkSchedule = !entity.isJuvenile && workplace != null && shift.onShift;
-    if (workplace && (onWorkSchedule || workReason.code === 'walking-to-work')) {
+    if (workplace && !shift.patrolAssignment && (onWorkSchedule || workReason.code === 'walking-to-work')) {
       const point = buildingAccessPoint(workplace);
       return { kind: 'workplace', label: labelFor(workplace), buildingId: workplace.id, ...point };
     }
@@ -324,7 +324,7 @@ export function getHumanActivityProjection(
       onShift: !entity.isJuvenile && shift.onShift,
     },
     home: homeBuilding ? { id: homeBuilding.id, label: labelFor(homeBuilding) } : null,
-    workplace: workplace ? { id: workplace.id, label: labelFor(workplace), ...(assignment.trainingSite ? { apprenticeship: true } : {}) } : null,
+    workplace: workplace ? { id: workplace.id, label: labelFor(workplace), ...(assignment.trainingSite ? { apprenticeship: true } : {}), ...(shift.patrolAssignment ? { patrol: true as const } : {}) } : null,
     target,
     blockedReason,
     workReason,

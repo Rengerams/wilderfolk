@@ -21,7 +21,8 @@ import {
   killHuman,
   TICKS_PER_HOUR,
 } from './dayCycle';
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, isActiveMoonHowler } from './playerHuman';
+export { isActiveMoonHowler } from './playerHuman';
 import { citizenFullName, humanDisplayName } from './citizenId';
 import { buildEntityByType } from './simFocus';
 import {
@@ -37,6 +38,8 @@ import { isBarracksGuard } from './defenseStructures';
 import { isInsideCompletedBuilding } from './terrainSystems';
 import { getSimRng } from './simRng';
 import { HUMAN_FORM, revertToHumanForm } from './moonHowlerForm';
+import { legacyHumanNeeds, normalizeHumanNeeds } from './simulation/humanPhysiology';
+import { SPECIES_CONFIG } from './speciesConfig';
 import type { RevertToHumanFormOptions } from './moonHowlerForm';
 import { releaseDialogueSession } from './humanChat';
 import { deterministicCos, deterministicSin } from './simTrig';
@@ -115,7 +118,6 @@ function rollMoonHowlerRiteOutcome(
   return 'priest_fled';
 }
 
-const WEREWOLF_FORM = { maxEnergy: 700, speed: 3.4, size: 14 };
 
 export function countActiveMoonHowlerCurses(entities: readonly Entity[]): number {
   return entities.filter((e) => e.alive && e.moonHowlerCursed).length;
@@ -176,9 +178,6 @@ export function canMoonHowlerCurse(entity: Entity): boolean {
   );
 }
 
-export function isActiveMoonHowler(entity: Pick<Entity, 'alive' | 'type' | 'moonHowlerCursed'>): boolean {
-  return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
-}
 
 export function curseMoonHowler(human: Entity): void {
   human.moonHowlerCursed = true;
@@ -228,15 +227,13 @@ export function forceMoonHowlerOutside(
 }
 
 export function transformToWerewolfForm(human: Entity, buildings: Building[]): void {
-  const cfg = WEREWOLF_FORM;
+  const cfg = SPECIES_CONFIG[EntityType.Werewolf];
   const liveJobId = human.workerBuildingId;
   const liveResidenceId = human.residenceBuildingId;
   const livePrisonId = human.prisonBuildingId;
 
   human.moonHowlerSaved = {
-    needs: human.needs ? { ...human.needs } : undefined,
-    energy: human.energy,
-    maxEnergy: human.maxEnergy,
+    needs: { ...(human.needs ?? normalizeHumanNeeds(human)) },
     speed: human.speed,
     size: human.size,
     job: human.job,
@@ -289,7 +286,8 @@ export function transformToWerewolfForm(human: Entity, buildings: Building[]): v
   if (human.combatRollSeed == null) {
     human.combatRollSeed = ((human.id * 2654435761) ^ 0x9e3779b9) >>> 0;
   }
-  human.energy = Math.min(cfg.maxEnergy, human.energy + 80);
+  // The transformed predator starts with its species' metabolic reserve, not human stamina.
+  human.energy = cfg.maxEnergy;
   human.maxEnergy = cfg.maxEnergy;
   human.speed = cfg.speed;
   human.size = cfg.size;
@@ -574,8 +572,10 @@ export function migrateLegacyMoonHowler(entity: Entity, colonyDay: number, hourO
     entity.occupation = entity.occupation ?? 'settler';
     entity.relationshipStatus = entity.relationshipStatus ?? 'single';
     const cfg = HUMAN_FORM;
-    entity.maxEnergy = cfg.maxEnergy;
-    entity.energy = Math.min(cfg.maxEnergy, entity.energy);
+    // This path is called only by the legacy save loader; retain its historical human calibration.
+    normalizeHumanNeeds(entity, legacyHumanNeeds(Math.min(cfg.maxEnergy, entity.energy), cfg.maxEnergy));
+    entity.energy = 0;
+    entity.maxEnergy = 0;
     entity.speed = cfg.speed;
     entity.size = cfg.size;
   }

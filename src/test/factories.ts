@@ -6,6 +6,7 @@ import type { Building, BuildingType, Entity, WorldState } from '../game/gameTyp
 import { EntityType, JobType } from '../game/gameTypes';
 import { SPECIES_CONFIG } from '../game/speciesConfig';
 import { createEntity } from '../game/entityFactory';
+import { initialHumanNeeds } from '../game/simulation/humanPhysiology';
 
 /**
  * The fields every hand-built settler fixture in the suite shares. `maxAge` mirrors what `createEntity`
@@ -17,8 +18,9 @@ function settlerBase(id: number): Entity {
     type: EntityType.Human,
     x: 10,
     y: 10,
-    energy: 100,
-    maxEnergy: 100,
+    // Player humans carry native needs only; the legacy wire slots stay zero.
+    energy: 0,
+    maxEnergy: 0,
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -41,7 +43,9 @@ function settlerBase(id: number): Entity {
 
 /** A living adult settler with a default `Settler` job — the suite's most-copied fixture. */
 export function human(id: number, overrides: Partial<Entity> = {}): Entity {
-  return { ...settlerBase(id), job: JobType.Settler, ...overrides };
+  const base = { ...settlerBase(id), job: JobType.Settler, ...overrides };
+  // A hand-built settler is a fully rested adult: native needs, never a legacy energy conversion.
+  return { ...base, needs: base.needs ?? initialHumanNeeds(100) };
 }
 
 /** A completed test building at `constructionProgress: 1`; the `100` variant is {@link finishedBuilding}. */
@@ -123,7 +127,6 @@ export function addGeneratedSocialHuman(
     ...(opts.workerBuildingId != null ? { workerBuildingId: opts.workerBuildingId } : {}),
     ...(opts.job ? { job: opts.job } : {}),
     alive: true,
-    maxEnergy: 100,
   };
   w.entities.push(resident);
   return resident;

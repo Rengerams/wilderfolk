@@ -13,6 +13,12 @@ import { hasCompletedBlacksmith, isForgeOrderComplete } from './forge';
 import { COMBAT_TECH } from './combatTech';
 import { hasTech, resolveResearchEffect } from './simHelpers';
 import { seededRandomForRun } from './simRng';
+import { HUMAN_ADULT_MIN_AGE } from './daycycleconstants';
+import { evaluateAptitudeInfluence } from './personality/traitEvaluation';
+import { readSkill } from './skills';
+import { SPECIES_CONFIG } from './speciesConfig';
+import { resolveArmedDuty } from './workDuty';
+import { initialHumanNeeds } from './simulation/humanPhysiology';
 
 const EMPTY_FORGE: VillageForgeState = {
   activeOrder: null,
@@ -46,7 +52,7 @@ export function hasIronShields(state: CombatContext & { villageForge?: VillageFo
   );
 }
 
-/** Research + blacksmith + forge — village-wide iron swords. */
+/** Research + blacksmith + forge — iron swords available for military duty. */
 export function hasIronSwords(state: CombatContext & { villageForge?: VillageForgeState }): boolean {
   return (
     hasTech(state, COMBAT_TECH.ironSwords) &&
@@ -109,6 +115,43 @@ export function getCounterAttackChance(state: WorldState): number {
 }
 
 /**
+ * One read-only encounter profile. Technology is availability, not personal equipment.
+ * Physiology is a native reserve for humans and the existing metabolic reserve for predators.
+ * No persistent strength or second equipment inventory is introduced.
+ */
+export function resolvePredatorCombatChances(
+  state: WorldState, human: Entity, predator: Entity,
+): { counter: number; block: number } {
+  if (!human.alive || human.type !== EntityType.Human || human.age < HUMAN_ADULT_MIN_AGE) {
+    return { counter: 0, block: 0 };
+  }
+  const duty = resolveArmedDuty(state, human);
+  const needs = human.needs ?? initialHumanNeeds();
+  const unit = (value: number): number => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  const readiness = unit(Math.min(needs.stamina, needs.rest, needs.nutrition) / 100);
+  const predatorReserve = predator.maxEnergy > 0 ? unit(predator.energy / predator.maxEnergy) : 0;
+  const aptitude = evaluateAptitudeInfluence(human, 'defense').factor;
+  const skill = duty === 'military' ? readSkill(human, human.job === JobType.PrisonGuard ? JobType.PrisonGuard : JobType.Soldier)
+    : duty === 'hunting' ? readSkill(human, JobType.Hunter) : 0;
+  const predatorStrength = SPECIES_CONFIG[predator.type]?.predatorCombatStrength ?? 1;
+  const factor = readiness * aptitude * (1 + 0.15 * unit(skill / 100)) * (1 + 0.5 * (1 - predatorReserve)) / predatorStrength;
+  let counter = 0;
+  let block = 0.05; // adult unarmed self-defence, never military gear
+  if (duty === 'military') {
+    // Research alone is not a forged weapon or suit of armour.
+    counter = hasIronSwords(state) ? Math.min(0.55, getCounterAttackChance(state))
+      : hasIronSpears(state) ? Math.min(0.45, getCounterAttackChance(state))
+      : hasStoneSpears(state) ? 0.15 : 0;
+    block = hasScaleMail(state) ? Math.min(0.72, getPredatorBlockChance(state))
+      : hasIronShields(state) ? Math.min(0.60, getPredatorBlockChance(state))
+      : hasWoodenShields(state) ? Math.min(0.35, getPredatorBlockChance(state)) : block;
+  } else if (duty === 'hunting') {
+    counter = hasIronSpears(state) ? 0.45 : hasStoneSpears(state) ? 0.15 : 0;
+  }
+  return { counter: Math.min(0.85, counter * factor), block: Math.min(0.85, block * factor) };
+}
+
+/**
  * One combat roll per entity and tick, drawn from the run-seeded `combat` stream. The salt carries
  * the caller's per-entity seed, so the value never depends on stream cursors or on entity order.
  */
@@ -116,29 +159,18 @@ function combatRoll(kind: 'predator-block' | 'counter-attack', ...keys: number[]
   return seededRandomForRun(`combat:${kind}:${keys.join(':')}`);
 }
 
-export function rollPredatorBlock(
-  state: WorldState,
-  humanId: number,
-  tick: number,
-  combatRollSeed = 0,
+/** Resolve either encounter verdict through one probability comparison, preserving both seeded identities. */
+export function rollPredatorCombat(
+  kind: 'predator-block' | 'counter-attack',
+  state: WorldState, human: Entity, predator: Entity, tick: number,
 ): boolean {
-  const chance = getPredatorBlockChance(state);
-  if (chance <= 0) return false;
-  const roll = combatRoll('predator-block', humanId, tick, combatRollSeed);
-  return roll < chance;
-}
-
-export function rollCounterAttack(
-  state: WorldState,
-  humanId: number,
-  predatorId: number,
-  tick: number,
-  combatRollSeed = 0,
-): boolean {
-  const chance = getCounterAttackChance(state);
-  if (chance <= 0) return false;
-  const roll = combatRoll('counter-attack', humanId, predatorId, tick, combatRollSeed);
-  return roll < chance;
+  const chances = resolvePredatorCombatChances(state, human, predator);
+  const chance = kind === 'counter-attack' ? chances.counter : chances.block;
+  if (!(chance > 0)) return false;
+  const keys = kind === 'counter-attack'
+    ? [human.id, predator.id, tick, human.combatRollSeed ?? 0]
+    : [human.id, tick, human.combatRollSeed ?? 0];
+  return combatRoll(kind, ...keys) < chance;
 }
 
 export interface ArmamentStep {

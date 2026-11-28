@@ -24,6 +24,13 @@ export function isPlayerHuman(e: Pick<Entity, 'type' | 'faction'>): boolean {
   return e.type === EntityType.Human && !isForeignFaction(e.faction);
 }
 
+/** Active cursed predator form, shared by threat and form-policy readers. */
+export function isActiveMoonHowler(entity: Pick<Entity, 'alive' | 'type' | 'moonHowlerCursed'>): boolean {
+  return entity.alive && entity.type === EntityType.Werewolf && !!entity.moonHowlerCursed;
+}
+
+export const HUMAN_HOWLER_FLEE_RADIUS = 110;
+
 /** A player's witnessed human shift still belongs to them during a temporary Moon Howler form. */
 export function isPlayerHumanShiftOwner(e: Pick<Entity, 'type' | 'faction' | 'moonHowlerCursed' | 'moonHowlerSaved'>): boolean {
   return isPlayerHuman(e) || (e.type === EntityType.Werewolf && !!e.moonHowlerCursed

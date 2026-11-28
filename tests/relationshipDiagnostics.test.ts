@@ -6,7 +6,6 @@ import { personDayRoll } from '../src/game/simRng';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityType, Season, WeatherType, emptyEntityByType } from '../src/game/gameTypes';
 import type { Entity, WorldState } from '../src/game/gameTypes';
-import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import type { TickContext } from '../src/game/simulation/simulationTypes';
 import { tryDailyConception } from '../src/game/simulation/humanRelationships';
 import { tickPregnancyAndBirth } from '../src/game/simulation/humanLifecycle';
@@ -31,7 +30,6 @@ function dayWhere(predicate: (day: number) => boolean): number {
 }
 const tickOnDay = (day: number): number => day * TICKS_PER_DAY;
 
-const ENERGY_THRESHOLD = SPECIES_CONFIG[EntityType.Human].reproductionEnergyThreshold;
 
 function human(id: number, overrides: Partial<Entity> = {}): Entity {
   return {
@@ -39,8 +37,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 10,
     y: 10,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -148,7 +147,7 @@ describe('conception gate funnel (Objective 8)', () => {
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 2,
-      energy: ENERGY_THRESHOLD * 0.5,
+      needs: { nutrition: 80, rest: 80, stamina: 10 },
     });
     const husband = human(2, { gender: 'male' });
     const state = makeState([mother, husband]);
@@ -166,7 +165,6 @@ describe('conception gate funnel (Objective 8)', () => {
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 2,
-      energy: ENERGY_THRESHOLD * 2,
       x: 10,
       y: 10,
     });
@@ -186,7 +184,6 @@ describe('conception gate funnel (Objective 8)', () => {
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 2,
-      energy: ENERGY_THRESHOLD * 2,
       x: 10,
       y: 10,
     });
@@ -210,7 +207,6 @@ describe('conception gate funnel (Objective 8)', () => {
       gender: 'female',
       relationshipStatus: 'married',
       partnerId: 2,
-      energy: ENERGY_THRESHOLD * 2,
       x: 10,
       y: 10,
     });

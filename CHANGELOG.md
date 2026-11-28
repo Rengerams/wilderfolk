@@ -2,10 +2,19 @@
 
 ## 0.6.5.2 [Unreleased]
 
+- **Fixed (28 Nov 2026):** Restore one-time legacy player stamina and Moon Howler human-snapshot migration on load; native needs take precedence and active wolf metabolism remains independent.
+
+- **Fixed (28 Nov 2026):** Repair the worker transport workflow YAML and its self-path filter so Knip and worker validation can load the configuration.
 - **Fixed (28 Nov 2026):** Preserve the saved valley ecology stage, dwell day and stress/recovery counters on reload; only daily settlement advances existing stages.
 
 - **Fixed (28 Nov 2026):** Allow independent pending affair progress per candidate, decay unused bonds and keep established affairs exclusive; show all developing pairs in the inspector.
 - **Fixed (28 Nov 2026, PR #254):** Centralize school duty and inspector status in education. Classroom rosters and credits require actual persisted seats and witnessed teacher/pupil presence, not speculative enrollment. School hours never count as workplace attendance.
+
+- **Fixed (28 Nov 2026):** Barracks soldiers patrol directly during their shift; shared presence and duty rules credit patrol attendance and show Patrolling rather than requiring a barracks visit.
+
+- **Fixed (28 Nov 2026):** Migrate human relationship, medical, hunting, civic and election decisions to stamina; use native stamina effects and thresholds, and retire the temporary energy mirror, isolate old-save conversion, and separate Moon Howler predator metabolism from saved human needs.
+
+- **Fixed (28 Nov 2026):** Hunts restore no stamina. Predator weapons require valid duty or active raid roster; native reserve defaults and skill affect chances. Children cannot wield weapons. Moon Howlers use 1,800 energy and 2× combat resistance.
 
 - **Fixed (28 Nov 2026):** Successful human hunts no longer restore stamina or legacy energy; colony food yield is unchanged.
 

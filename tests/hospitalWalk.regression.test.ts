@@ -22,6 +22,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 const HOSPITAL_THRESHOLD_PROGRESS = PREGNANCY_TICKS * 0.85;
 
 function entity(x: number, y: number, overrides: Partial<Entity> = {}): Entity {
+  const stamina = (overrides.energy ?? 100) / (overrides.maxEnergy ?? 100) * 100;
   return {
     id: 1,
     type: 'human',
@@ -33,6 +34,7 @@ function entity(x: number, y: number, overrides: Partial<Entity> = {}): Entity {
     age: 25,
     energy: 100,
     maxEnergy: 100,
+    needs: { nutrition: 80, rest: 85, stamina: Math.max(0, Math.min(100, stamina)) },
     gender: 'female',
     isJuvenile: false,
     ...overrides,
@@ -276,7 +278,7 @@ describe('doctor duty under the one pregnancy rule', () => {
         staffedHospitals: staffed ? [ward] : [],
         onHospitalShift: true,
       });
-      return patient.energy > 5;
+      return patient.needs!.stamina > 10;
     }
     throw new Error('no scheduled ward round found in the fixture window');
   }

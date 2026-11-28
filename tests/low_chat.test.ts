@@ -44,8 +44,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 0,
     y: 0,
-    energy: 50,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 50 },
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -116,12 +117,12 @@ function tickWhere(predicate: (tick: number) => boolean): number {
 /** Daily ward round outcome for one patient, with the doctor at `doctorOffsetX`. */
 function runWardRound(doctorOffsetX: number): number {
   const hospital = makeHospital([9]);
-  const patient = human(1, { x: 120, y: 120, energy: 0 });
-  const doctor = human(9, { x: 120 + doctorOffsetX, y: 120, energy: 100 });
+  const patient = human(1, { x: 120, y: 120, needs: { nutrition: 80, rest: 80, stamina: 0 } });
+  const doctor = human(9, { x: 120 + doctorOffsetX, y: 120 });
   const state = makeWorld([patient, doctor]);
 
   tickHospitalDailyCare(state, hospital, [patient]);
-  return patient.energy;
+  return patient.needs!.stamina;
 }
 
 afterEach(() => {
@@ -147,8 +148,8 @@ describe('L36 — medicine cost transparency', () => {
   it('records the medicine food cost on the economy ledger', () => {
     const tick = tickWhere((t) => personDayRoll(5, t, 902) < 0.25);
     const hospital = makeHospital([9]);
-    const patient = human(5, { x: 120, y: 120, energy: 0 });
-    const doctor = human(9, { x: 500, y: 500, energy: 100 });
+    const patient = human(5, { x: 120, y: 120, needs: { nutrition: 80, rest: 85, stamina: 0 } });
+    const doctor = human(9, { x: 500, y: 500 });
     const state = makeWorld([patient, doctor], tick, 5);
 
     expect(treatPatientAtHospital(state, patient, hospital)).toBe(true);
@@ -350,12 +351,13 @@ describe('L52 — diagnostics reset', () => {
 });
 
 describe('L53 — friendship pruning', () => {
-  it('drops dead friends and lifts energy only for living ones', () => {
+  it('drops dead friends and lifts stamina only for living ones', () => {
     const survivor = human(1, {
       energy: 50,
+      needs: { nutrition: 80, rest: 80, stamina: 50 },
       friendships: { friend_99: 80, friend_2: 80 },
     });
-    const neighbour = human(2, { energy: 50 });
+    const neighbour = human(2, { needs: { nutrition: 80, rest: 85, stamina: 50 } });
     const state = makeWorld([survivor, neighbour]);
 
     advanceSocialRelationships(state, [survivor, neighbour]);
@@ -363,8 +365,9 @@ describe('L53 — friendship pruning', () => {
     expect(survivor.friendships?.friend_99).toBeUndefined();
     // The living friend survives; they share no context, so it fades by one day's decay.
     expect(survivor.friendships?.friend_2).toBeCloseTo(80 - FRIENDSHIP_DECAY_PER_DAY, 5);
-    // One living strong friend = +0.8; the dead one no longer counts.
-    expect(survivor.energy).toBeCloseTo(50.8, 5);
+    // One living strong friend = +0.16 native stamina; the dead one no longer counts.
+    expect(survivor.needs!.stamina).toBeCloseTo(50.16, 5);
+    expect(survivor.energy).toBe(50);
   });
 
   it('keeps friends of settlers who are alive but outside this pass', () => {

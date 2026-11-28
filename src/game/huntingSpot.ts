@@ -186,10 +186,10 @@ const HUNTING_PURSUIT_CLOSE_FRACTION = 0.6;
 
 /**
  * The wolf's fight-back: the chance it turns on the hunter instead of being taken, and what the bite
- * costs. One hunt in ten; the bite lands on the hunter, whose health is its energy.
+ * costs. One hunt in ten; the bite lands on the hunter, whose stamina absorbs the injury.
  */
 export const HUNTING_FIGHT_BACK_CHANCE = 0.1;
-export const HUNTING_FIGHT_BACK_BITE_ENERGY = 140;
+export const HUNTING_FIGHT_BACK_BITE_STAMINA = 28;
 
 /**
  * What a fight-back can do to the hunter, rolled once per bite on the same key as the fight-back roll:
@@ -199,10 +199,9 @@ export const HUNTING_FIGHT_BACK_KILL_CHANCE = 0.05;
 /** 0.11 = the band above the kill band, so a mauling is ~11 % of bites and ~1.1 % of wolf hunts. */
 export const HUNTING_FIGHT_BACK_INJURY_CHANCE = 0.11;
 /**
- * 260 = the mauling's extra energy on top of the ordinary 140 bite, well over half a settler's 500-point
- * bar; health *is* energy, so surviving it costs the day.
+ * 52 additional stamina points on top of the ordinary 28-point bite; surviving it costs the day.
  */
-export const HUNTING_FIGHT_BACK_MAUL_ENERGY = 260;
+export const HUNTING_FIGHT_BACK_MAUL_STAMINA = 52;
 
 /** What a skilled hunter keeps of the fatal band — a floor, never a guarantee. */
 export const HUNTING_FIGHT_BACK_SKILL_FLOOR = 0.2;

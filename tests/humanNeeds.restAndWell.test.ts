@@ -7,7 +7,7 @@ import { HUMAN_NEEDS, advanceHumanNeeds, hasNearbyWell, initialHumanNeeds } from
 
 const resident = (): Entity => ({ id: 2, type: EntityType.Human, alive: true,
   isJuvenile: false, x: 0, y: 0, energy: 50, maxEnergy: 500,
-  needs: initialHumanNeeds(50, 500) } as Entity);
+  needs: initialHumanNeeds(10) } as Entity);
 const well = (id: number, x: number, overrides: Partial<Building> = {}): Building =>
   ({ id, x, y: 0, width: 0, height: 0, type: BuildingType.Well,
      completed: true, occupants: [], ...overrides } as Building);

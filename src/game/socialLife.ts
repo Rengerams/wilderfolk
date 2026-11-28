@@ -144,8 +144,7 @@ export function pickSocialImpulse(
   const pickSocialBuilding = (types: readonly BuildingType[]) => pickBuilding(entity, poolOf?.(types) ?? buildings, types);
 
   // 1. Sick / Exhausted — Rest at home (or just rest, if homeless)
-  if (resolveHumanNeedsIntent(entity, tick, false, false) === 'takeBreak'
-    || (!entity.needs && getHumanStaminaRatio(entity) < HUMAN_NEEDS.STAMINA_CRITICAL / 100)) {
+  if (resolveHumanNeedsIntent(entity, tick, false, false) === 'takeBreak') {
     return {
       motive: 'sick_day',
       stayHome: hasHome,

@@ -40,7 +40,7 @@ const INTERVAL: Record<SpotKind, number> = {
  */
 function human(id: number): Entity {
   return {
-    id, type: EntityType.Human, x: 100, y: 100, energy: 100, maxEnergy: 100, age: 30,
+    id, type: EntityType.Human, x: 100, y: 100, energy: 0, maxEnergy: 0, age: 30,
     birthYear: 0, birthMonth: 0, birthDay: 0, alive: true, size: 10, speed: 2, vx: 0, vy: 0,
     flash: 0, animFrame: 0, spriteAngle: 0, childrenIds: [], generation: 0, isJuvenile: false,
     maxAge: 90, reproductionCooldown: 0,

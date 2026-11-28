@@ -31,7 +31,7 @@ import { GRAZE_BITE_ENERGY, GRASS_GRAZE_MIN_ENERGY } from './grassEcology';
 import { tamedAnimalsFedToday } from './animalCare';
 import { isPlayerHuman } from './playerHuman';
 import { appendDeathAge, citizenFullName, humanDisplayName } from './citizenId';
-import { rollPredatorBlock, rollCounterAttack } from './combat';
+import { rollPredatorCombat } from './combat';
 import { isActiveMoonHowler } from './moonHowler';
 import { logDeath, logEvent } from './eventLog';
 import { logWildkinBirth } from './wildkinChronicle';
@@ -513,12 +513,12 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
 
             if (
               isHumanPrey &&
-              rollCounterAttack(
+              rollPredatorCombat(
+                'counter-attack',
                 state,
-                caughtPrey.id,
-                entity.id,
+                caughtPrey,
+                entity,
                 state.tick,
-                caughtPrey.combatRollSeed ?? 0,
               )
             ) {
               const slainPredatorId = entity.id;
@@ -546,7 +546,7 @@ export function tickWildlife(state: WorldState, ctx: TickContext): void {
               continue;
             } else if (
               isHumanPrey &&
-              rollPredatorBlock(state, caughtPrey.id, state.tick, caughtPrey.combatRollSeed ?? 0)
+              rollPredatorCombat('predator-block', state, caughtPrey, entity, state.tick)
             ) {
               caughtPrey.combatTicks = 14;
               caughtPrey.flash = 10;

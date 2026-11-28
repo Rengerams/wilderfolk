@@ -169,21 +169,34 @@ describe('individual job selection is unavailable', () => {
 });
 
 describe('building worker roster shows work duty, not private activities', () => {
-  it('distinguishes working and walking to work on the same barracks roster', () => {
+  it('shows both assigned soldiers patrolling during duty without a barracks check-in', () => {
     const barracks = building(20, BuildingType.Barracks, { occupants: [1, 2] });
     const atPost = humanBuildingTarget(barracks, 1);
-    const present = human(1, { workerBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
-    const commuter = human(2, { workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
-    const state = makeWorld([present, commuter], [barracks]);
+    const present = human(1, { name: 'NearGuard', workerBuildingId: barracks.id, job: JobType.Soldier, x: atPost.x, y: atPost.y });
+    const distant = human(2, { name: 'DistantGuard', workerBuildingId: barracks.id, job: JobType.Soldier, x: 3000, y: 3000 });
+    const state = makeWorld([present, distant], [barracks]);
     state.tick = 10 * TICKS_PER_HOUR;
-    expect(commuteHumanToBuilding(commuter, barracks, 2)).toBe(false);
-    expect(Math.hypot(commuter.vx, commuter.vy)).toBeGreaterThan(0);
     const html = renderPanel(barracks, state);
-    expect(html).toContain('Working');
-    expect(html).toContain('Walking to work');
+    expect(html.match(/ · Patrolling/g)).toHaveLength(2);
+    expect(html).not.toContain('Walking to work');
     expect(html).not.toContain('Soldiers are manual only');
     expect(html).toContain('even off shift');
     expect(html).not.toContain('during work shifts');
+  });
+
+  it('distinguishes working and walking to work at an ordinary workplace', () => {
+    const farm = building(20, BuildingType.Farm, { occupants: [1, 2] });
+    const atPost = humanBuildingTarget(farm, 1);
+    const present = human(1, { workerBuildingId: farm.id, job: JobType.Farmer, x: atPost.x, y: atPost.y });
+    const commuter = human(2, { workerBuildingId: farm.id, job: JobType.Farmer, x: 3000, y: 3000 });
+    const state = makeWorld([present, commuter], [farm]);
+    state.tick = 10 * TICKS_PER_HOUR;
+    expect(commuteHumanToBuilding(commuter, farm, 2)).toBe(false);
+    expect(Math.hypot(commuter.vx, commuter.vy)).toBeGreaterThan(0);
+    const html = renderPanel(farm, state);
+    expect(html).toContain(' · Working');
+    expect(html).toContain(' · Walking to work');
+    expect(html).not.toContain(' · Patrolling');
   });
 
   it('shows off duty even when an assigned soldier is sleeping at home', () => {

@@ -343,6 +343,22 @@ const GUARDS = [
  * reports a violation instead of passing on a typo.
  */
 const SOURCE_ROWS = [
+  { id: 'plague-native-stamina-ownership', checks: [{ file: 'src/game/worldEvents.ts', contains: 'if (isPlayerHuman(e)) {\n            adjustHumanStamina(e, -20);', notMatches: /if\s*\(e\.needs\)\s*\{\s*adjustHumanStamina\(/, example: 'if (e.needs) { adjustHumanStamina(e, -20); }' }] },
+  { id: 'human-legacy-stamina-bridge-retired', scan: { dir: 'src', ext: ['.ts', '.tsx'], notMatches: /adjustHumanStaminaFromEnergy\b/, example: 'adjustHumanStaminaFromEnergy(entity, 10)', minFiles: 1 } },
+  { id: 'human-native-stamina-thresholds', checks: [{ files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts', 'src/game/hospitalCare.ts', 'src/game/education.ts'], notMatches: /\.maxEnergy\b|reproductionEnergyThreshold\b/, example: 'entity.maxEnergy' }] },
+  { id: 'human-hunting-no-stamina-reward', checks: [{ file: 'src/game/humanHuntingBehavior.ts', notMatches: /adjustHumanStaminaFromEnergy|creditHumanNutritionFromFood|\.energyGain\b/, example: 'adjustHumanStaminaFromEnergy(entity, 350)' }] },
+  { id: 'migrated-human-stamina-readers', checks: [{
+    files: ['src/game/humanTick.ts', 'src/game/simulation/humanRelationships.ts',
+      'src/game/hospitalCare.ts', 'src/game/humanHuntingBehavior.ts',
+      'src/game/electionVotes.ts', 'src/game/townHall.ts', 'src/game/dashboardData.ts'],
+    notMatches: /(?:\.energy\b|\[['"]energy['"]\])/,
+    example: 'entity.energy',
+  }] },
+  { id: 'human-stamina-no-energy-mirror', checks: [
+    { file: 'src/game/simulation/humanPhysiology.ts', notMatches: /\.(?:energy|maxEnergy)\b|syncHumanEnergyMirror\b/, example: 'entity.energy = entity.maxEnergy * needs.stamina / 100;' },
+    { file: 'src/game/moonHowlerForm.ts', notMatches: /saved\?*\.(?:energy|maxEnergy)\b|\.energy\s*=.*\.stamina/, example: 'were.energy = saved?.energy;' },
+    { file: 'src/game/moonHowler.ts', notMatches: /human\.(?:energy|maxEnergy)\s*\+|energy:\s*human\.energy/, example: 'human.energy + 80' },
+  ] },
   { id: 'terrain-fill-single-stamp', checks: [{ file: 'src/game/terrainLayer.ts', region: [{ from: 'function drawTerrainFill(', to: 'type Cardinal', counts: [{ needle: 'drawImage(', times: 1 }] }] }] },
   { id: "yearly-marriage-statistics-owner", checks: [{ file: "src/game/stats.ts", contains: "filter(isMarriedOrExpecting)", notMatches: /relationshipStatus\s*===\s*'married'/, example: "relationshipStatus === 'married'" }] },
   { id: "active-marriage-predicate-single-owner", scan: { dir: "src", ext: [".ts", ".tsx"], except: ["src/game/relationships.ts"], notMatches: /function isActivelyMarried\s*\(/, example: "function isActivelyMarried(", minFiles: 1 } },

@@ -25,8 +25,9 @@ function makeChild(ageYears: number, state: WorldState): Entity {
     type: EntityType.Human,
     x: 100,
     y: 100,
-    energy: 120,
-    maxEnergy: 120,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: ageYears,
     birthYear: 0,
     birthMonth: 0,
@@ -119,11 +120,13 @@ describe('a child graduates once, with the education payoff', () => {
     state.entities = [child];
 
     expect(syncThenGraduate(state, child)).toBe(true);
-    const energyAfterGraduation = child.maxEnergy;
+    const staminaAfterGraduation = child.needs!.stamina;
+    const capacityAfterGraduation = child.maxEnergy;
 
     // Later ticks re-run both calls; the transition must be a no-op now.
     expect(syncThenGraduate(state, child)).toBe(false);
-    expect(child.maxEnergy).toBe(energyAfterGraduation);
+    expect(child.needs!.stamina).toBe(staminaAfterGraduation);
+    expect(child.maxEnergy).toBe(capacityAfterGraduation);
   });
 
   it('does not graduate a child who is still below the childhood threshold', () => {

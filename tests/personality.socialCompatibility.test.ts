@@ -49,8 +49,9 @@ function housemate(id: number, genomeV2: GenomeV2): Entity {
     type: EntityType.Human,
     name: `Settler${id}`,
     alive: true,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     residenceBuildingId: 10,
     genomeV2 } as Entity;
 }

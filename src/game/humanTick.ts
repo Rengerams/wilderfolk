@@ -1,17 +1,17 @@
 import { MAX_ASSIGNABLE_COMMUTE_HOURS, MAX_COMMUTE_LEAD_HOURS, WORK_COMMUTE_RUSH, quoteBuildingCommute } from './commuteReach';
 import type { WorldState, Entity, Building } from './gameTypes';
 import { EntityType, BuildingType, BUILDING_JOB_TYPES, JobType, Season, PATH_CELL } from './gameTypes';
-import { isBarracksGuard } from './defenseStructures';
 import { SPECIES_CONFIG } from './speciesConfig';
+import { Relationship } from './gameConstants';
 import { getSimRng, seededRandomForRun, personDayRoll } from './simRng';
 import { faceVelocity, ROAD_SPEED_MULT } from './simulation/movementSteering';
 import { OFFSCREEN_HUMAN_THROTTLE, isInFocus } from './simFocus';
 import { getChurchStrength } from './workforce';
-import { resolveShift } from './workAbsence';
+import { resolveShift, resolveWorkPresence } from './workAbsence';
 import { isPrisonerInCell } from './prisonShifts';
 import { buildConstructionCrewIndex, resolveHumanWorkplace } from './workforceSummary';
 
-import { isPlayerHuman } from './playerHuman';
+import { isPlayerHuman, HUMAN_HOWLER_FLEE_RADIUS } from './playerHuman';
 import { deterministicCos, deterministicSin } from './simTrig';
 import { isSettlerRelationshipEntity } from './moonHowlerForm';
 import { buildCeremonySeatIndex, getElectionGatherTarget, isCeremonyAttendee } from './villageLeadership';
@@ -99,7 +99,7 @@ import { getReadOnlyPathGrid, isOnWalkableRoadAt, nearestWalkableWorldPoint, set
 import { isCommutingToBuilding, crowdGatherPosition, enterHumanBuilding, applyHumanWalkStep, advanceHumanWalkAnim, clearHumanWalkTarget, commuteDistanceFromResidence, commuteDistanceToBuilding, commuteHumanToBuilding, commuteLeadHoursFor, nearestActiveMoonHowler, resumeHumanWalk, steerHumanToward } from './simulation/humanMovement';
 import { buildingAccessPoint, isAtBuildingReach } from './buildingAccess';
 import { tryEatColonyMeal, killFromStarvation } from './simulation/humanNeeds';
-import { advanceHumanNeeds, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
+import { advanceHumanNeeds, getHumanStaminaRatio, hasFatalStarvation, hasNearbyWell, resolveHumanNeedsIntent } from './simulation/humanPhysiology';
 import { getPreventiveCareMortalityMultiplier, isRestingHospitalPatient } from './hospitalCare';
 import { getCompletedWildlifePreserves } from './wildlifePopulationPolicy';
 import { simAmbientChatNeighbors, simSettlerPairChat } from './simulation/humanSocial';
@@ -637,7 +637,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       ? undefined : buildingById.get(entity.residenceBuildingId);
     const distanceFromHome = workplace
       ? commuteDistanceFromResidence(entity, residenceForSleep, workplace) : 0;
-    const scheduledCommuteHours = workplace
+    const scheduledCommuteHours = workplace && !shift.patrolAssignment
       ? Math.min(MAX_ASSIGNABLE_COMMUTE_HOURS,
         Math.max(commuteLeadHoursFor(distanceFromHome, config.speed),
           isPrisonGuardAtPost ? estimatedPrisonHours : 0))
@@ -660,7 +660,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const venueWork = (isInnkeeper || isHotelier) && workplace != null;
     const venueCommuteDue = venueWork && nextShiftStartTick != null
       && state.tick >= nextShiftStartTick - commuteLeadHours * TICKS_PER_HOUR;
-    const workCommuteDue = venueWork ? onTavernShift || onHotelShift || venueCommuteDue
+    const workCommuteDue = shift.patrolAssignment ? false : venueWork ? onTavernShift || onHotelShift || venueCommuteDue
       : isHospitalDoctor ? hospitalCommuteDue || onHospitalShift
       : isPrisonGuardAtPost ? prisonCommuteDue : workplace != null
         && isWorkDay(state.tick)
@@ -678,11 +678,24 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     );
     const atPost = workplace != null && isAtBuildingReach(entity, workplace);
     const wasInsideWorkplace = workplace != null && previousIndoorBuildingId === workplace.id;
-    // Hunters work away from the spot; every other scheduled trade must be at its post or inside it.
-    const hunterInField = entity.job === JobType.Hunter && entity.huntTargetId != null;
     // Pregnancy hospital priority outranks the shift: the settler still owes the duty hours, but
     // standing at a post they are leaving is not verified work.
     const goingToHospital = isPregnancyHospitalPriority(entity, staffedHospitals.length > 0);
+    const huntingWere = anyActiveHowler
+      ? findClosestEntityInRadius(
+          mobileGrid,
+          entity.x,
+          entity.y,
+          HUMAN_HOWLER_FLEE_RADIUS,
+          isActiveMoonHowler,
+          'human_hunt',
+          byType[EntityType.Werewolf],
+        )
+      : undefined;
+    const workPresence = shift.onShift && workplace != null && isPlayerHuman(entity)
+      ? resolveWorkPresence(state, entity, workplace, shift, {
+          indoorBuildingId: previousIndoorBuildingId, atPost, threatened: !!huntingWere, goingToHospital,
+        }) : undefined;
     if (isPlayerHuman(entity) && !entity.raidDeploymentId && workplace != null && shift.onShift) {
       // A construction crew has no regular workerBuildingId. Its resolved workplace supplies
       // the witnessed site and trade through the existing attendance recorders.
@@ -692,7 +705,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           ? (BUILDING_JOB_TYPES[workplace.type] ?? JobType.Builder)
           : (entity.job ?? null);
       recordScheduleWorkTick(entity, 1, workplace?.id, attendedJob);
-      if (!goingToHospital && (atPost || wasInsideWorkplace || hunterInField)) {
+      if (workPresence != null) {
         recordPresentWorkTick(entity, 1, workplace?.id);
       }
     }
@@ -706,6 +719,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     const active =
       !isPrisoner &&
       (spotlightActorIds?.has(entity.id) || inFocus || leavingWork ||
+        (shift.patrolAssignment && (shift.onShift || isStartOfClockHour(state.tick))) ||
         ((recoveringSleep || preShiftSleep.headHome) && !onJobShift) ||
         (entity.needs?.breakUntilRecovered === true && !onJobShift) ||
         hospitalCommuteDue ||
@@ -863,18 +877,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && !onDutyForSleep && !takingNeedsBreak && !sleepingForNeeds && !recoveringSleep;
     const allowFreeRoam = socialTime && (festivalGathering || !stayIn);
 
-    const huntingWere = anyActiveHowler
-      ? findClosestEntityInRadius(
-          mobileGrid,
-          entity.x,
-          entity.y,
-          110,
-          isActiveMoonHowler,
-          'human_hunt',
-          byType[EntityType.Werewolf],
-        )
-      : undefined;
-
     // The festival destination is shared by the readiness and movement decisions.
     const festivalStand = festivalGathering ? crowdGatherPosition(
       festivalSquare ? festivalSquare.x + festivalSquare.width / 2 : (staffedTownHalls[entity.id % staffedTownHalls.length]?.x ?? width * 0.5),
@@ -906,8 +908,8 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       && closeCourtshipPartner.courtshipPartnerId === entity.id
       && courtshipReadiness.has(entity.id)
       && isEligibleToCourt(entity) && isEligibleToCourt(closeCourtshipPartner)
-      && entity.energy > config.reproductionEnergyThreshold * 0.6
-      && closeCourtshipPartner.energy > config.reproductionEnergyThreshold * 0.6
+      && getHumanStaminaRatio(entity) * 100 > Relationship.COURTSHIP_MIN_STAMINA
+      && getHumanStaminaRatio(closeCourtshipPartner) * 100 > Relationship.COURTSHIP_MIN_STAMINA
       && canAdvanceCourtship(courtshipPresence, closeCourtshipPresence,
         Math.hypot(closeCourtshipPartner.x - entity.x, closeCourtshipPartner.y - entity.y),
         courtshipPresence.socialTime && closeCourtshipPresence.socialTime);
@@ -1095,10 +1097,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       !inElectionCeremony &&
       !inSpotlightGathering &&
       !festivalGathering &&
-      goWorkTime &&
-      workplace &&
-      entity.job === JobType.Soldier &&
-      isBarracksGuard(entity.id, entity.workerBuildingId, updatedBuildings)
+      workPresence === 'patrol'
     ) {
       const anchor = getCampAnchor();
       if (anchor) {
@@ -1110,10 +1109,6 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
           (Math.floor(tx / PATH_CELL) + 0.5) * PATH_CELL,
           (Math.floor(ty / PATH_CELL) + 0.5) * PATH_CELL,
           config.speed, 0.65, `patrol_${entity.id}`);
-        onSchedule = true;
-        suppressIdle = true;
-      } else if (workplace) {
-        if (commuteHumanToBuilding(entity, workplace, config.speed, WORK_COMMUTE_RUSH)) enterHumanBuilding(entity, workplace);
         onSchedule = true;
         suppressIdle = true;
       }
@@ -1284,7 +1279,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
     // Other workers do not abandon their jobs to chase dates.
     if (!sleepingForNeeds && (((!suppressIdle || contactOnly) && courtshipPresence.socialTime) || courtshipPresence.onDuty) &&
       isEligibleToCourt(entity) && entity.gender &&
-      entity.energy > config.reproductionEnergyThreshold * 0.6) {
+      getHumanStaminaRatio(entity) * 100 > Relationship.COURTSHIP_MIN_STAMINA) {
       // Never stop an unobserved partner's movement: they might be asleep,
       // working, exhausted, or otherwise unavailable. The pair's actual
       // close-contact branch below owns stopping only after both are observed.
@@ -1302,7 +1297,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
         entityById,
         (candidate) => {
           const presence = courtshipReadiness.get(candidate.id);
-          if (!presence || presence.sleeping || candidate.energy <= config.reproductionEnergyThreshold * 0.6) return false;
+          if (!presence || presence.sleeping || getHumanStaminaRatio(candidate) * 100 <= Relationship.COURTSHIP_MIN_STAMINA) return false;
           if (courtshipPresence.onDuty || presence.onDuty) {
             return canAdvanceCourtship(courtshipPresence, presence, Math.hypot(candidate.x - entity.x, candidate.y - entity.y), socialTime);
           }
@@ -1316,7 +1311,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       const otherPresence = closest && courtshipReadiness.get(closest.id);
       // Eligibility must be symmetric: a well-rested caller cannot advance a tired partner.
       if (closest && otherPresence && !otherPresence.sleeping &&
-        closest.energy > config.reproductionEnergyThreshold * 0.6) {
+        getHumanStaminaRatio(closest) * 100 > Relationship.COURTSHIP_MIN_STAMINA) {
         const dx = closest.x - entity.x;
         const dy = closest.y - entity.y;
         const dist = Math.hypot(dx, dy);
@@ -1506,7 +1501,7 @@ export function tickHumans(state: WorldState, ctx: TickContext): void {
       entity.gender &&
       entity.age >= HUMAN_ADULT_MIN_AGE &&
       entity.age < HUMAN_MAX_LIFESPAN_YEARS &&
-      entity.energy > config.reproductionEnergyThreshold * 0.5 &&
+      getHumanStaminaRatio(entity) * 100 > Relationship.AFFAIR_MIN_STAMINA &&
       hasActiveMarriage &&
       // An empty marital home is a valid tryst site: only a spouse right there blocks it, at the
       // affair gates' 22 px — the wider 55 px arrival window is the walk-in that catches them.

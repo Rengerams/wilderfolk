@@ -4,7 +4,7 @@ import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { treatPatientAtHospital } from '../src/game/hospitalCare';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycleClock';
 import { tryEatColonyMeal } from '../src/game/simulation/humanNeeds';
-import { advanceHumanNeeds, getHumanNeedsWorkMultiplier, initialHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
+import { advanceHumanNeeds, adjustHumanStamina, getHumanNeedsWorkMultiplier, legacyHumanNeeds, normalizeHumanNeeds, resolveHumanNeedsIntent } from '../src/game/simulation/humanPhysiology';
 
 const mealTick = TICKS_PER_DAY;
 function person(override: Partial<Entity> = {}): Entity {
@@ -95,6 +95,37 @@ describe('single human meal transaction', () => {
 });
 
 describe('cross-system physiology compatibility', () => {
+  it('applies native stamina points independently of legacy capacity and clamps the reserve', () => {
+    for (const maxEnergy of [100, 400, 500, 900]) {
+      const e = person({ maxEnergy, energy: 0, needs: { nutrition: 60, rest: 70, stamina: 20 } });
+      adjustHumanStamina(e, 9);
+      expect(e.needs!.stamina).toBe(29);
+      adjustHumanStamina(e, -50);
+      expect(e.needs!.stamina).toBe(0);
+      adjustHumanStamina(e, 150);
+      expect(e.needs!.stamina).toBe(100);
+      expect(e.needs!.rest).toBe(70);
+      expect(e.needs!.nutrition).toBe(60);
+      expect(e.energy).toBe(0);
+    }
+  });
+
+  it('sizes medical treatment from stamina even when legacy energy disagrees', () => {
+    const run = (energy: number, stamina: number) => {
+      const patient = person({ x: 100, y: 100, energy, needs: { nutrition: 60, rest: 70, stamina } });
+      const doctor = person({ id: 2, x: 100, y: 100 });
+      const hospital = { id: 4, type: BuildingType.Hospital, completed: true,
+        x: 100, y: 100, width: 40, height: 40, occupants: [doctor.id] } as Building;
+      const state = { ...world(10), entities: [patient, doctor],
+        floatingTexts: [], nextFloatingTextId: 1 } as WorldState;
+      const treated = treatPatientAtHospital(state, patient, hospital, { doctorPresent: true });
+      return { treated, stamina: patient.needs!.stamina };
+    };
+    expect(run(500, 20)).toEqual(run(100, 20));
+    expect(run(500, 20).treated).toBe(true);
+    expect(run(0, 100)).toEqual({ treated: false, stamina: 100 });
+  });
+
   it('keeps a hospital stamina treatment after the next physiological tick', () => {
     const patient = person({ x: 100, y: 100, needs: { nutrition: 60, rest: 70, stamina: 20 },
       energy: 100 });
@@ -110,7 +141,7 @@ describe('cross-system physiology compatibility', () => {
     advanceHumanNeeds(patient, { tick: state.tick + 1, sleeping: false, working: false, moving: false });
     expect(patient.needs!.stamina).toBeLessThan(afterTreatment);
     expect(patient.needs!.stamina).toBeGreaterThan(before);
-    expect(patient.energy / patient.maxEnergy * 100).toBeCloseTo(patient.needs!.stamina, 4);
+    expect(patient.energy).toBe(100); // no runtime mirror
   });
 });
 
@@ -152,7 +183,7 @@ describe('independent physiological advancement', () => {
 
   it('treats zero stamina as recoverable and clamps bad old energy', () => {
     const e = person({ energy: Number.NaN, maxEnergy: 0 });
-    expect(initialHumanNeeds(e.energy, e.maxEnergy).stamina).toBe(80);
+    expect(legacyHumanNeeds(e.energy, e.maxEnergy).stamina).toBe(80);
     e.needs = { nutrition: 50, rest: 50, stamina: 0 };
     advanceHumanNeeds(e, { tick: mealTick, sleeping: false, working: false, moving: false, resting: true });
     expect(e.alive).toBe(true);

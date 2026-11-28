@@ -45,8 +45,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 100,
     y: 100,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -249,6 +250,9 @@ describe('Hunting Spot wildlife cleanup', () => {
       for (let seed = 1; seed <= 16 && !success; seed++) {
         setWorkerSimSeed(seed);
         const state = makeState();
+        // Isolate the assigned hunting spot from famine-driven free hunting.
+        const hunter = state.entities.find((entity) => entity.id === 1)!;
+        hunter.needs = { nutrition: 100, rest: 100, stamina: 100 };
         state.tick = day * TICKS_PER_DAY + DAILY_PHASE_HOURS.production * TICKS_PER_HOUR - 1;
         const after = gameTick(state);
         if (!after.entities.some((entity) => entity.id === 2)) {

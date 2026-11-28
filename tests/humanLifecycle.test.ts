@@ -58,8 +58,9 @@ function human(id: number, overrides: Partial<Entity> = {}): Entity {
     type: EntityType.Human,
     x: 100,
     y: 100,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     age: 28,
     birthYear: -28,
     birthMonth: 0,
@@ -467,11 +468,11 @@ describe('human lifecycle golden contracts', () => {
     const day = conceptionDay(603);
     for (const deployedId of [MATERNAL_ID, FATHER_ID]) {
       const husband = human(FATHER_ID, {
-        energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID,
+        partnerId: MATERNAL_ID,
         raidDeploymentId: deployedId === FATHER_ID ? 'outgoing_test' : undefined,
       });
       const mother = human(MATERNAL_ID, {
-        energy: 200, maxEnergy: 200, partnerId: FATHER_ID,
+        partnerId: FATHER_ID,
         raidDeploymentId: deployedId === MATERNAL_ID ? 'outgoing_test' : undefined,
       });
       const { state, ctx } = makeFixture([mother, husband]);
@@ -479,8 +480,8 @@ describe('human lifecycle golden contracts', () => {
       expect(tryDailyConception(state, ctx, mother)).toBe(false);
       expect(mother.pregnant).not.toBe(true);
     }
-    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID });
-    const mother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID });
+    const husband = human(FATHER_ID, { partnerId: MATERNAL_ID });
+    const mother = human(MATERNAL_ID, { partnerId: FATHER_ID });
     const { state, ctx } = makeFixture([mother, husband]);
     setColonyDay(state, day);
     expect(tryDailyConception(state, ctx, mother)).toBe(true);
@@ -488,8 +489,8 @@ describe('human lifecycle golden contracts', () => {
 
   it('gives married, youth-love and affair conceptions the same keyed term rule', () => {
     const marriedDay = conceptionDay(603);
-    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID, relationshipStatus: 'married' });
-    const marriedMother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID, relationshipStatus: 'married' });
+    const husband = human(FATHER_ID, { partnerId: MATERNAL_ID, relationshipStatus: 'married' });
+    const marriedMother = human(MATERNAL_ID, { partnerId: FATHER_ID, relationshipStatus: 'married' });
     const married = makeFixture([marriedMother, husband]);
     setColonyDay(married.state, marriedDay);
 
@@ -502,16 +503,12 @@ describe('human lifecycle golden contracts', () => {
 
     const youthDay = conceptionDay(604);
     const youthFather = human(FATHER_ID, {
-      energy: 200,
-      maxEnergy: 200,
       age: 16,
       isJuvenile: true,
       relationshipStatus: 'single',
       youthLovePartnerId: MATERNAL_ID,
     });
     const youthMother = human(MATERNAL_ID, {
-      energy: 200,
-      maxEnergy: 200,
       age: 16,
       isJuvenile: true,
       relationshipStatus: 'single',
@@ -527,8 +524,8 @@ describe('human lifecycle golden contracts', () => {
     expect(youthMother.relationshipStatus).toBe('single');
 
     const affairDay = conceptionDay(605);
-    const lover = human(FATHER_ID, { energy: 200, maxEnergy: 200, relationshipStatus: 'single', affairPartnerId: MATERNAL_ID });
-    const affairMother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, relationshipStatus: 'single', affairPartnerId: FATHER_ID });
+    const lover = human(FATHER_ID, { relationshipStatus: 'single', affairPartnerId: MATERNAL_ID });
+    const affairMother = human(MATERNAL_ID, { relationshipStatus: 'single', affairPartnerId: FATHER_ID });
     const affair = makeFixture([affairMother, lover]);
     setColonyDay(affair.state, affairDay);
 
@@ -635,8 +632,8 @@ describe('human lifecycle golden contracts', () => {
 
   it('gives an arriving pregnant immigrant and a colony conception the same pregnancy state', () => {
     const day = conceptionDay(603);
-    const husband = human(FATHER_ID, { energy: 200, maxEnergy: 200, partnerId: MATERNAL_ID, relationshipStatus: 'married' });
-    const mother = human(MATERNAL_ID, { energy: 200, maxEnergy: 200, partnerId: FATHER_ID, relationshipStatus: 'married' });
+    const husband = human(FATHER_ID, { partnerId: MATERNAL_ID, relationshipStatus: 'married' });
+    const mother = human(MATERNAL_ID, { partnerId: FATHER_ID, relationshipStatus: 'married' });
     const { state, ctx } = makeFixture([mother, husband]);
     setColonyDay(state, day);
     expect(tryDailyConception(state, ctx, mother)).toBe(true);

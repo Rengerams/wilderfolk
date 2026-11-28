@@ -1,4 +1,4 @@
-import { normalizeHumanNeeds, rebaseHumanNeedsClockAfterFormRestore } from './simulation/humanPhysiology';
+import { initialHumanNeeds, normalizeHumanNeeds, rebaseHumanNeedsClockAfterFormRestore } from './simulation/humanPhysiology';
 import { moveResident } from './housingPipeline';
 /**
  * Moon Howler form state — the snapshot, the restore and the predicates that keep a cursed settler
@@ -61,12 +61,12 @@ export function revertToHumanForm(were: Entity, opts?: RevertToHumanFormOptions)
   were.indoorBuildingId = undefined;
   were.vx = 0;
   were.vy = 0;
-  were.maxEnergy = saved?.maxEnergy ?? cfg.maxEnergy;
-  were.energy = Math.min(were.maxEnergy, saved?.energy ?? cfg.maxEnergy * 0.55);
+  were.energy = 0;
+  were.maxEnergy = 0;
   were.needs = saved?.needs ? { ...saved.needs } : undefined;
-  normalizeHumanNeeds(were);
+  // A pre-snapshot legacy wolf has the historical 55% human return reserve.
+  normalizeHumanNeeds(were, initialHumanNeeds(55));
   rebaseHumanNeedsClockAfterFormRestore(were, tick);
-  were.energy = were.maxEnergy * were.needs!.stamina / 100;
   were.speed = saved?.speed ?? cfg.speed;
   were.size = saved?.size ?? cfg.size;
   were.relationshipStatus = saved?.relationshipStatus;

@@ -28,7 +28,7 @@ function worker(genomeV2: GenomeV2): Entity {
     genomeV2,
     energy: START_ENERGY,
     maxEnergy: MAX_ENERGY,
-    needs: initialHumanNeeds(START_ENERGY, MAX_ENERGY),
+    needs: initialHumanNeeds(START_ENERGY / MAX_ENERGY * 100),
   } as Entity;
 }
 

@@ -148,14 +148,14 @@ describe('relationship webs — feuds', () => {
     expect(relationshipScore(b, a.id, 'feud')).toBe(35);
   });
 
-  it('feuds decay and drain energy over days', () => {
+  it('feuds decay and drain stamina over days', () => {
     const w = initGame({ villageName: 'P7', size: 'medium' });
     const a = addGeneratedSocialHuman(w, { id: 1 });
     const b = addGeneratedSocialHuman(w, { id: 2 });
     startFeud(w, a, b, 35);
-    const e0 = a.energy ?? 80;
+    const e0 = a.needs!.stamina;
     for (let d = 0; d < 3; d++) advanceSocialRelationships(w, w.entities);
     expect(relationshipScore(a, b.id, 'feud')).toBeLessThan(35);
-    expect((a.energy ?? 80)).toBeLessThan(e0);
+    expect(a.needs!.stamina).toBeLessThan(e0);
   });
 });

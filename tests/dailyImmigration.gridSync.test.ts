@@ -26,8 +26,9 @@ function settler(id: number, x: number, y: number): Entity {
     alive: true,
     x,
     y,
-    energy: 100,
-    maxEnergy: 100,
+    energy: 0,
+    maxEnergy: 0,
+    needs: { nutrition: 80, rest: 85, stamina: 100 },
     residenceBuildingId: 10,
   } as Entity;
 }

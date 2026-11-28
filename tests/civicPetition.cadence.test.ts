@@ -30,6 +30,7 @@ function human(id: number, job: JobType): Entity {
     y: HALL_Y + 20,
     energy: 60,
     maxEnergy: 200,
+    needs: initialHumanNeeds(30),
     age: 30,
     birthYear: 0,
     birthMonth: 0,
@@ -110,7 +111,7 @@ describe('civic petitions resolve at the daily cadence only', () => {
       state.humanPopulation = 100;
       state.resources.food = 30;
       petitioner.energy = 160;
-      petitioner.needs = initialHumanNeeds(160, 200);
+      petitioner.needs = initialHumanNeeds(80);
       petitioner.needs.nutrition = 5;
       petitioner.needs.severeHungerTicks = 100;
       const result = resolveCivicPetition(state, petitioner, hall);
@@ -130,7 +131,7 @@ describe('civic petitions resolve at the daily cadence only', () => {
 
   it('hearing a petitioner credits the stamina owner, surviving the next physiology tick', () => {
     const { state, hall, petitioner } = makeWorld();
-    petitioner.needs = initialHumanNeeds(60, 200);
+    petitioner.needs = initialHumanNeeds(30);
     const before = petitioner.needs.stamina;
     const result = resolveCivicPetition(state, petitioner, hall);
     expect(result.kind).toBe('heard');
@@ -142,7 +143,7 @@ describe('civic petitions resolve at the daily cadence only', () => {
   });
   it('an official standing at the hall applies no petition effect per tick', () => {
     const { state, hall, official, petitioner } = makeWorld();
-    const energyBefore = petitioner.energy;
+    const staminaBefore = petitioner.needs!.stamina;
     const reputationBefore = state.villageReputation;
     const foodBefore = state.resources.food;
     const goldBefore = state.resources.gold;
@@ -151,7 +152,7 @@ describe('civic petitions resolve at the daily cadence only', () => {
       officialHandlePetitioners(state, official, hall, [official, petitioner]);
     }
 
-    expect(petitioner.energy).toBe(energyBefore);
+    expect(petitioner.needs!.stamina).toBe(staminaBefore);
     expect(state.villageReputation).toBe(reputationBefore);
     expect(state.resources.food).toBe(foodBefore);
     expect(state.resources.gold).toBe(goldBefore);
@@ -159,12 +160,12 @@ describe('civic petitions resolve at the daily cadence only', () => {
 
   it('the daily town-hall pulse still resolves a petition', () => {
     const { state, hall, official, petitioner } = makeWorld();
-    const energyBefore = petitioner.energy;
+    const staminaBefore = petitioner.needs!.stamina;
     const reputationBefore = state.villageReputation;
 
     tickTownHallAudiences(state, hall, [official, petitioner]);
 
-    expect(petitioner.energy).toBeGreaterThan(energyBefore);
+    expect(petitioner.needs!.stamina).toBeGreaterThan(staminaBefore);
     expect(state.villageReputation).toBe(reputationBefore + 1);
     expect(petitioner.civicPetitionResolvedDay).toBe(getAbsoluteCalendarDay(state.tick));
     expect(wantsCivicAudience(petitioner, state)).toBe(false);

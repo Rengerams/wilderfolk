@@ -49,6 +49,7 @@ import {
 } from '../src/game/moonHowler';
 import type { MoonHowlerSyncResult } from '../src/game/moonHowler';
 import { revertToHumanForm } from '../src/game/moonHowlerForm';
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { advanceHumanNeeds } from '../src/game/simulation/humanPhysiology';
 import type { RevertToHumanFormOptions } from '../src/game/moonHowlerForm';
 import { buildEntityByType } from '../src/game/simFocus';
@@ -59,6 +60,93 @@ import { createSeededRng, getSimRng, setSimSeed, resetSimRng } from '../src/game
 import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 
 describe('Moon Howler restored physiology clock', () => {
+  function reload(world: WorldState): WorldState {
+    const parsed = parseSaveJson(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
+    if (!parsed.valid) throw new Error('physiology fixture did not parse');
+    const loaded = loadGameFromParsed(parsed.parsed);
+    if (!loaded) throw new Error('physiology fixture did not load');
+    return loaded.world;
+  }
+
+  it('converts an old human reserve only once across real save/load boundaries', () => {
+    const world = initGame({ skipTerrain: true, seed: 62 });
+    const person = world.entities.find((e) => e.alive && e.type === EntityType.Human)!;
+    person.needs = undefined;
+    person.energy = 125;
+    person.maxEnergy = 500;
+    const migrated = reload(world);
+    const resident = migrated.entities.find((e) => e.id === person.id)!;
+    expect(resident.needs?.stamina).toBe(25);
+    expect(resident.energy).toBe(0);
+    expect(resident.maxEnergy).toBe(0);
+    // Even a contradictory legacy reserve in a mixed-format save cannot override native needs.
+    resident.energy = 500;
+    resident.maxEnergy = 500;
+    const restored = reload(migrated).entities.find((e) => e.id === person.id)!;
+    expect(restored.needs).toEqual(resident.needs);
+    expect(restored.energy).toBe(0);
+    expect(restored.maxEnergy).toBe(0);
+    // Zero is a valid native stamina value, not a missing legacy reserve.
+    const emptyStaminaWorld = reload(migrated);
+    const exhausted = emptyStaminaWorld.entities.find((e) => e.id === person.id)!;
+    exhausted.needs = { nutrition: 63, rest: 17, stamina: 0, severeHungerTicks: 0 };
+    exhausted.energy = 500;
+    exhausted.maxEnergy = 500;
+    const final = reload(emptyStaminaWorld).entities.find((e) => e.id === person.id)!;
+    expect(final.needs).toMatchObject({ nutrition: 63, rest: 17, stamina: 0 });
+    expect(final.energy).toBe(0);
+    expect(final.maxEnergy).toBe(0);
+  });
+
+  it.each([false, true])('preserves human reserves independently of active wolf metabolism (legacy snapshot: %s)', (legacy) => {
+    const world = initGame({ skipTerrain: true, seed: 63 });
+    const person = world.entities.find((e) => e.alive && e.type === EntityType.Human)!;
+    const fullMoonDay = DAYS_PER_MOON_CYCLE * 4;
+    world.year = Math.floor(fullMoonDay / DAYS_PER_YEAR);
+    world.dayInYear = fullMoonDay % DAYS_PER_YEAR;
+    world.tick = fullMoonDay * TICKS_PER_DAY + MOON_HOWLER_NIGHT_START * TICKS_PER_HOUR;
+    world.lastProcessedCalendarDay = fullMoonDay;
+    person.needs = { nutrition: 80, rest: 85, stamina: 42, severeHungerTicks: 0 };
+    curseMoonHowler(person);
+    transformToWerewolfForm(person, world.buildings);
+    expect(person.energy).toBe(SPECIES_CONFIG[EntityType.Werewolf].maxEnergy);
+    expect(person.maxEnergy).toBe(person.energy);
+    expect(person.energy).toBeGreaterThan(SPECIES_CONFIG[EntityType.Wolf].maxEnergy);
+    expect(person.moonHowlerSaved?.energy).toBeUndefined();
+    expect(person.moonHowlerSaved?.maxEnergy).toBeUndefined();
+    if (legacy) {
+      person.moonHowlerSaved!.needs = undefined;
+      person.moonHowlerSaved!.energy = 210;
+      person.moonHowlerSaved!.maxEnergy = 500;
+    } else {
+      // A stale legacy reserve must lose to the saved native stamina.
+      person.moonHowlerSaved!.energy = 5;
+      person.moonHowlerSaved!.maxEnergy = 500;
+    }
+    person.energy = 73; // an independent wolf metabolic reserve
+    const firstLoad = reload(world);
+    const firstWolf = firstLoad.entities.find((e) => e.id === person.id)!;
+    expect(firstWolf.moonHowlerSaved?.needs?.stamina).toBe(42);
+    expect(firstWolf.moonHowlerSaved?.energy).toBeUndefined();
+    expect(firstWolf.moonHowlerSaved?.maxEnergy).toBeUndefined();
+    const loaded = reload(firstLoad);
+    const wolf = loaded.entities.find((e) => e.id === person.id)!;
+    expect(wolf.type).toBe(EntityType.Werewolf);
+    expect(wolf.energy).toBe(73);
+    expect(wolf.moonHowlerSaved?.needs?.stamina).toBe(42);
+    expect(wolf.moonHowlerSaved?.energy).toBeUndefined();
+    expect(wolf.moonHowlerSaved?.maxEnergy).toBeUndefined();
+    const dawn = (fullMoonDay + 1) * TICKS_PER_DAY + NIGHT_END * TICKS_PER_HOUR;
+    revertToHumanForm(wolf, { buildings: loaded.buildings, humans: loaded.entities, tick: dawn });
+    expect(wolf.type).toBe(EntityType.Human);
+    expect(wolf.needs?.stamina).toBe(42);
+    expect(wolf.needs?.nutrition).toBe(80);
+    expect(wolf.needs?.rest).toBe(85);
+    expect(wolf.needs?.lastAdvancedTick).toBe(dawn - 1);
+    expect(wolf.energy).toBe(0);
+    expect(wolf.maxEnergy).toBe(0);
+  });
+
   it('clears indoor and predator movement state across both form transitions', () => {
     const state = initGame({ skipTerrain: true, seed: 61 });
     const settler = state.entities.find((entity) => entity.type === EntityType.Human)!;
@@ -526,8 +614,9 @@ describe('moonHowler.rare.test.ts', () => {
       type: EntityType.Human,
       x: 100,
       y: 100,
-      energy: 100,
-      maxEnergy: 100,
+      energy: 0,
+      maxEnergy: 0,
+      needs: { nutrition: 80, rest: 85, stamina: 100 },
       age: 30,
       birthYear: 0,
       birthMonth: 0,
@@ -1355,8 +1444,9 @@ describe('M21 — the rare moon-howler roll is a per-moon decision', () => {
       type: EntityType.Human,
       x: 100 + id,
       y: 100,
-      energy: 200,
-      maxEnergy: 200,
+      energy: 0,
+      maxEnergy: 0,
+      needs: { nutrition: 80, rest: 85, stamina: 100 },
       age: 30,
       birthYear: 0,
       birthMonth: 0,
