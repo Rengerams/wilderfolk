@@ -2,7 +2,7 @@
 
 ## 0.6.5.2 [Unreleased]
 
-- **Improved (28 Nov 2026):** Derive simulation decision keys and generate the current ownership overview from the typed registry; validate primary function references and documentation freshness through the existing ownership gate.
+- **Improved (28 Nov 2026):** Derive simulation decision keys and generate the current ownership overview from the typed registry; validate primary and supporting declaration claims, tooling ownership and documentation freshness; distinguish verified claims from historical migration evidence.
 
 - **Fixed (28 Nov 2026):** Children no longer keep following a caregiver during evening/night rosters or continue stale follow/play movement through school or bedtime, including homeless off-screen children; genuinely free-time following remains allowed.
 
