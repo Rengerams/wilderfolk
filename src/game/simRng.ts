@@ -91,7 +91,7 @@ export const PERSON_DAY_ROLL_SALTS = {
   socialGreeting: 724,
 } as const;
 
-/** Lane primes keep existing single-person rolls byte-stable; the pair uses its own lane layout. */
+/** Retain historical single-person hash lanes; pairs use their own lane layout. */
 const SINGLE_DAY_PRIMES = [374761393, 668265263, 1274126177] as const;
 const PAIR_DAY_PRIMES = [374761393, 2654435761, 668265263, 1274126177] as const;
 
@@ -102,7 +102,12 @@ function mixDayRoll(lanes: readonly number[], primes: readonly number[], extraAv
   }
   hash = Math.imul(hash ^ (hash >>> 16), 2246822519) >>> 0;
   if (extraAvalanche) hash = Math.imul(hash ^ (hash >>> 13), 3266489917) >>> 0;
-  return (hash % 10000) / 10000;
+  // Keep the historical buckets and resolve the discarded quotient within each bucket.
+  // Aligned strict thresholds remain stable; rare probabilities gain near-32-bit precision.
+  const bucketCount = 10000;
+  const bucket = hash % bucketCount;
+  const subBucket = Math.floor(hash / bucketCount) / Math.ceil(4294967296 / bucketCount);
+  return (bucket + subBucket) / bucketCount;
 }
 
 /** Stable 0..1 roll for one person on one colony day. */

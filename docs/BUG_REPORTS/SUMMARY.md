@@ -1,5 +1,8 @@
 # Bug report summary — one line per report
 
+**2026-11-28 — [Daily RNG rounds up rare mortality](../bug_report/2026-11-28-daily-rng-rare-mortality.md):** investigating; shared day-roll mixer resolves sub-bucket probabilities; deterministic million-roll comparison reproduced inflated mortality; regression CI pending.
+**2026-11-28 — [Leader custody exception](../bug_report/2026-11-28-leader-custody-exception.md):** investigating; saved child #4913 lives with elected mother #2383 while ordinary custody selects father #2552; canonical custody now prefers the eligible elected parent after separation; regression CI pending.
+
 **2026-11-28 — [Large settlements forced into ecological collapse](../bug_report/2026-11-28-large-city-ecology-scaling.md):** investigating; weighted land use and industrial attendance replace flat penalties; city-scale regression added; CI pending.
 
 **2026-11-28 — [Preserve promises wildlife recovery without habitat](../bug_report/2026-11-28-preserve-no-wildlife-refuge.md):** investigating; protected hunting exclusion and capped habitat recovery implemented; CI pending.
