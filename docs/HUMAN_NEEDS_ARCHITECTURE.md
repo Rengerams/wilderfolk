@@ -7,10 +7,12 @@
 Player-human needs are native 0–100 reserves. Runtime decisions and effects never use the retired energy mirror. The common Entity wire slots remain numeric for other species; player humans initialize and load them as zero, and the worker rendering slot is zero for player humans. The inspector reads needs, not energy.
 
 - `initialHumanNeeds` takes native stamina. `legacyHumanNeeds` converts pre-needs saves and the historical positional spawn reserve once, before runtime decisions. `normalizeHumanNeeds` accepts explicit migration fallback values; otherwise it initializes native needs without reading energy.
-- New Moon Howler snapshots preserve native needs only. Active werewolf form starts at full species capacity (1800, twice the ordinary wolf); its species combat-strength factor is 2 in the existing predator encounter owner; reverting restores native needs and rebases the physiology clock. Old saved human-form energy converts at load.
+- New Moon Howler snapshots preserve native needs only. Active werewolf form starts at full species capacity (1800, twice the ordinary wolf); its species combat-strength factor is 2 in the existing predator encounter owner; reverting restores native needs and rebases the physiology clock. Old saved human-form energy converts at load only when native stamina is absent. A saved stamina of zero is valid and must never be replaced by legacy energy.
 - Nonhuman and foreign metabolism keeps its own energy semantics. Scoped source guards reject any return of the player runtime mirror; complete final-head CI is still required.
 
 ## 1. Purpose and invariants
+
+PR #250 is limited to the stamina authority migration: nutrition and rest remain independent native needs with their existing behavior; no new sleep-deprivation or exhaustion mortality, combined-needs penalties, or animal metabolism changes are introduced in this stage.
 
 Replace the single human energy bar with independent, serialized **nutrition**, **rest**, and **stamina**, and enforce **one owner per rule and function**. Human `energy` is not a reserve or a projection; shared player wire slots are zero. Nonhuman creatures deliberately retain their legacy energy semantics.
 
@@ -104,7 +106,7 @@ The Virtual Player now checks for a **completed, auto-managed food producer with
 
 ## 6. Persistence and compatibility
 
-Older saves explicitly convert their legacy reserve through `legacyHumanNeeds` before `normalizeHumanNeeds`. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
+Only saved humans or parked human-form snapshots missing native stamina convert their legacy reserve through `legacyHumanNeeds` before `normalizeHumanNeeds`. Valid native stamina (including zero), nutrition and rest remain authoritative, and legacy reserve slots are cleared after load. `saveSchema.ENTITY_PERSISTED_FIELDS` stores `needs`. Moon Howler form transitions preserve nested saved human needs; reverting rebases `lastAdvancedTick` to the tick preceding restoration, so the seven-hour nonhuman interval cannot be replayed as human hunger, sleep loss or stamina drain. `simWorker/simPrep.ts` deep-copies state (including nested saved needs), while `simBuffers/entityRenderMeta.ts` copies reserve values for display without owning or mutating them.
 
 The foreign war-captive feeding path was removed with the enemy-captive subsystem. Visitor/rival humans without a player household do not use colony food. Foreign entities retain their separate energy model. The player runtime mirror is removed; final-head verification remains open.
 
