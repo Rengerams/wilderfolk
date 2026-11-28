@@ -3,19 +3,9 @@
  * that hold no formula and `scent.ts` calls the owner directly.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { CAMERA_ZOOM_DEFAULT, worldToScreen } from '../src/game/viewState';
 import { strokeGridLines } from '../src/game/renderer/grid';
 import type { Camera } from '../src/game/gameTypes';
-
-function readSrc(relative: string): string {
-  return readFileSync(resolve(process.cwd(), relative), 'utf8');
-}
-
-// ---- the duplicated world→screen formula, per axis ----
-const DUPLICATE_X = /\(\s*\w+\s*-\s*cam\.x\s*\)\s*\*\s*cam\.zoom\s*\+\s*cw\s*\/\s*2/;
-const DUPLICATE_Y = /\(\s*\w+\s*-\s*cam\.y\s*\)\s*\*\s*cam\.zoom\s*\+\s*ch\s*\/\s*2/;
 
 function camera(x: number, y: number, zoom: number): Camera {
   return { x, y, zoom, targetX: x, targetY: y, targetZoom: zoom };
@@ -72,19 +62,5 @@ describe('A4 — the renderer draws through the single world→screen owner', ()
     const first = gridLineMarks(cam).find((m) => m.y === 0)!;
     expect(first.x).toBe((0 - cam.x) * CAMERA_ZOOM_DEFAULT + CW / 2 + 0.5);
     expect(first.x).toBe(worldToScreen(0, cam.y, cam, CW, CH)[0] + 0.5);
-  });
-
-  it('leaves no hand-written transform in grid.ts or scent.ts', () => {
-    const grid = readSrc('src/game/renderer/grid.ts');
-    const scent = readSrc('src/game/renderer/scent.ts');
-    expect(grid, 'grid.ts still restates the world→screen x formula').not.toMatch(DUPLICATE_X);
-    expect(grid, 'grid.ts still restates the world→screen y formula').not.toMatch(DUPLICATE_Y);
-    expect(scent, 'scent.ts still restates the world→screen x formula').not.toMatch(DUPLICATE_X);
-    expect(scent, 'scent.ts still restates the world→screen y formula').not.toMatch(DUPLICATE_Y);
-    expect(scent).toContain('worldToScreen');
-
-    // Guards must not be vacuous: each pattern is fed the source it must reject.
-    expect('  return (wx - cam.x) * cam.zoom + cw / 2;').toMatch(DUPLICATE_X);
-    expect('  return (wy - cam.y) * cam.zoom + ch / 2;').toMatch(DUPLICATE_Y);
   });
 });

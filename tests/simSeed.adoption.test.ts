@@ -188,3 +188,16 @@ describe('one run-seed authority for stories, elections and omens', () => {
     expect((state.pendingStoryEvents ?? []).some((event) => event.storyKey === DEER_STORY_KEY)).toBe(true);
   });
 });
+
+describe('N-15 — one run seed feeds every decision owner', () => {
+  afterEach(resetSimRng);
+
+  it('adopting a saved map seed makes getSimSeed that seed', () => {
+    resetSimRng();
+    setSimSeed(7);
+    adoptSimSeedFromWorld({ worldMap: { seed: 424_242 } });
+
+    expect(getSimSeed()).toBe(424_242);
+  });
+
+});

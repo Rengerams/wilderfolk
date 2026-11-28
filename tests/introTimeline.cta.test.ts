@@ -3,8 +3,6 @@
  * cannot skip beats that have not played; beats and total live in `introTimeline.ts`.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   INTRO_DURATION_MS,
   INTRO_LAST_BEAT_MS,
@@ -27,9 +25,7 @@ describe('intro timeline', () => {
     }
   });
 
-  it('schedules the CTA from the whole duration and carries no offset-shaped "ready" beat', () => {
+  it('carries no offset-shaped "ready" beat', () => {
     expect('ready' in INTRO_TIMELINE_MS, 'a "ready" offset is back in the beats map').toBe(false);
-    const screen = readFileSync(resolve(process.cwd(), 'src/game/IntroScreen.tsx'), 'utf8');
-    expect(screen).toContain('scheduleIntroBeat(INTRO_DURATION_MS, () =>');
   });
 });

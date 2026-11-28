@@ -1,5 +1,6 @@
+import { initGame } from '../src/game/worldGen';
 import { describe, expect, it } from 'vitest';
-import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS, TerrainType, type WorldMap } from '../src/game/gameTypes';
+import { MapPreset, MapSize, MAP_SIZE_DIMENSIONS, PATH_CELL, TerrainType, type WorldMap } from '../src/game/gameTypes';
 import { generateRawTerrain } from '../src/game/terrain/terragen';
 import { generateWorldMap, isFootprintBuildable } from '../src/game/terrainGen';
 import { tileTypeAt } from '../src/game/terrain/terrainGrid';
@@ -100,4 +101,27 @@ describe('new-game preset landscape contracts', () => {
       expect(old.elevation![center]).not.toBe(fresh.elevation![center]);
     }
   }, 240_000);
+});
+
+describe('generated world dimensions', () => {
+  it('L80 — InitGameOptions.width/height size the generated world map', () => {
+    const world = initGame({ width: 640, height: 480, seed: 99 });
+    expect(world.width).toBe(640);
+    expect(world.height).toBe(480);
+    expect(world.worldMap?.width).toBe(Math.ceil(640 / PATH_CELL));
+    expect(world.worldMap?.height).toBe(Math.ceil(480 / PATH_CELL));
+  });
+});
+
+describe('fallback terrain biome', () => {
+  it('L72 — the fallback biome is still Grassland after the no-op dry branch was removed', () => {
+    const map = generateWorldMap(MapSize.Medium, MapPreset.Arabia, 1234);
+    let grassland = 0;
+    for (let ty = 0; ty < map.height; ty++) {
+      for (let tx = 0; tx < map.width; tx++) {
+        if (tileTypeAt(map, tx, ty) === TerrainType.Grassland) grassland++;
+      }
+    }
+    expect(grassland).toBeGreaterThan(0);
+  });
 });

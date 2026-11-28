@@ -3,8 +3,6 @@
  * owner's map, so spoilage is listed and no row prints a raw source key.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { Season } from '../src/game/gameTypes';
 import { initGame } from '../src/game/worldGen';
 import { applyFoodSpoilage } from '../src/game/economy';
@@ -66,14 +64,4 @@ describe('the dashboard food balance accounts for spoilage (F2)', () => {
     );
   });
 
-  it('keeps the dashboard from growing a second label map', () => {
-    // The copy that drifted; a source contract because the component needs a DOM tier this repo does
-    // not run (`environment: 'node'`).
-    const src = readFileSync(
-      resolve(process.cwd(), 'src/components/dashboard/GameDashboard.tsx'),
-      'utf8',
-    );
-    expect(src).toContain('ECONOMY_SOURCE_LABELS');
-    expect(src).not.toMatch(/const SOURCE_LABELS/);
-  });
 });

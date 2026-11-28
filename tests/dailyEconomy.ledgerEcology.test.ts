@@ -3,10 +3,15 @@
  * a Bountiful Harvest grant lasts exactly its year, every stored food gain reaches the one ledger,
  * and grass regrows by the day so pasture can actually thin and pressure can respond.
  */
-import { describe, expect, it } from 'vitest';
-import { createEntity, initGame } from '../src/game/worldGen';
+import { rebuildEntityByIdMap } from '../src/game/entityIndex';
+import { invalidateCachedEntityByType } from '../src/game/entityTypeCache';
+import { getWeatherFarmMultiplier } from '../src/game/worldEvents';
+import { getMultiplier } from '../src/game/simHelpers';
+import { gameTick } from '../src/game/gameEngine';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createBuilding, createEntity, initGame } from '../src/game/worldGen';
 import {
-  BUILDING_CONFIGS, BuildingType, EntityType, JobType, Season, WeatherType, emptyEntityByType,
+  BUILDING_CONFIGS, BuildingType, EntityType, JobType, Season, WeatherType, emptyEntityByType, createInitialResearchNodes,
 } from '../src/game/gameTypes';
 import type {
   Building, Entity, RivalSettlement, TradeRoute, WorldState,
@@ -17,7 +22,7 @@ import { TICKS_PER_DAY } from '../src/game/dayCycle';
 import { countLivingPopulation } from '../src/game/entityCounts';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { getScheduleTargetHours } from '../src/game/scheduleFatigue';
-import { setSimSeed } from '../src/game/simRng';
+import { setSimSeed, resetSimRng, enableSeededGlobalRandom } from '../src/game/simRng';
 import { tickDailyWorldEvents, tickYearBoundaryWorldEvents } from '../src/game/dailyWorldEvents';
 import { tickBuildingProgress, tickDailyBuildingEconomy } from '../src/game/dailyBuildingEconomy';
 import { getTradeHubCenter, tryAdvanceCaravanLeg } from '../src/game/tradeCaravans';
@@ -360,5 +365,400 @@ describe('W-90 — a dead crew id neither speeds construction nor earns skill', 
       .toBe(empty.buildings[0].constructionProgress);
     // The dead id earns no construction skill either.
     expect(corpse.skills?.[JobType.Builder] ?? 0).toBe(0);
+  });
+});
+
+/**
+ * A controlled village: one adult settler, one completed producer, so the daily economy has
+ * exactly one staffed building; day 1 is a workday production tick.
+ */
+function loneProducerVillage(
+  type: BuildingType,
+  seed = 4242,
+): { state: WorldState; building: Building } {
+  const state = initGame({ villageName: 'C1', size: 'medium', seed });
+  const building = createBuilding(type, 240, 240, 9001);
+  building.completed = true;
+  building.constructionProgress = 100;
+
+  const worker = state.entities.find(
+    (e) =>
+      e.type === EntityType.Human &&
+      e.alive &&
+      !e.isJuvenile &&
+      !e.faction &&
+      e.occupation !== 'leader',
+  );
+  if (!worker) throw new Error('fixture: starter village has no adult settler');
+
+  state.buildings = [building];
+  state.entities = [worker];
+  rebuildEntityByIdMap(state);
+  invalidateCachedEntityByType(state);
+
+  // This isolated producer represents a settler who actually attended their
+  // completed workplace during the preceding shift.
+  worker.x = building.x + building.width / 2;
+  worker.y = building.y + building.height / 2;
+  worker.workerBuildingId = building.id;
+  worker.job = JobType.Farmer;
+  worker.occupation = 'farmer';
+  // Production now depends on actual attendance from the previous settled shift.
+  // The isolated fixture bypasses the realtime work ticks, so supply their earned hours.
+  worker.scheduleLastWorkedHours = 8;
+  building.occupants = [worker.id];
+
+  state.resources.food = 0;
+  // gameTick advances the clock first, so this lands on day 1 at 18:00 — the production phase.
+  state.tick = tickAtDailyPhase(1, 'production') - 1;
+  return { state, building };
+}
+
+describe('M5 greenhouse food production reaches the economy ledger', () => {
+  it('records staffed greenhouse output under its own ledger row', () => {
+    const { state } = loneProducerVillage(BuildingType.Greenhouse);
+    gameTick(state);
+
+    expect(state.resources.food, 'the greenhouse actually produced food').toBeGreaterThan(0);
+    const ledger = state.economyLedger;
+    expect(ledger, 'a production day creates a ledger').toMatchObject({ produced: { greenhouse: expect.any(Number) } });
+    // The greenhouse row must exist and account for the food that reached storage.
+    expect(ledger?.produced.greenhouse ?? 0, 'greenhouse ledger row').toBeGreaterThan(0);
+    expect(ledger?.produced.greenhouse ?? 0).toBeGreaterThanOrEqual(state.resources.food);
+  });
+});
+
+describe('M10 Irrigation drought_resist is consumed by the drought farm penalty', () => {
+  it('is read from research state and softens the drought penalty by 1.5x', () => {
+    const state = initGame({ villageName: 'C1', size: 'medium', seed: 11 });
+    expect(getMultiplier(state, 'drought_resist')).toBe(1);
+
+    const unresearched = getWeatherFarmMultiplier(
+      WeatherType.Drought,
+      getMultiplier(state, 'drought_resist'),
+    );
+    expect(unresearched).toBeCloseTo(0.5);
+
+    const node = state.researchNodes.find((n) => n.id === 'agriculture_3');
+    expect(node, 'agriculture_3 (Irrigation) node exists').toMatchObject({ id: 'agriculture_3', researched: false });
+    node!.researched = true;
+
+    expect(getMultiplier(state, 'drought_resist')).toBeCloseTo(1.5);
+    // "Farms work 50% better in drought": 0.5 * 1.5 = 0.75.
+    expect(
+      getWeatherFarmMultiplier(WeatherType.Drought, getMultiplier(state, 'drought_resist')),
+    ).toBeCloseTo(0.75);
+    // The resist is drought-only — clear weather is untouched.
+    expect(
+      getWeatherFarmMultiplier(WeatherType.Clear, getMultiplier(state, 'drought_resist')),
+    ).toBeCloseTo(1);
+  });
+
+  it('raises real farm output in a drought once Irrigation is researched', () => {
+    const plain = loneProducerVillage(BuildingType.Farm);
+    plain.state.weather = WeatherType.Drought;
+    gameTick(plain.state);
+
+    const irrigated = loneProducerVillage(BuildingType.Farm);
+    irrigated.state.weather = WeatherType.Drought;
+    irrigated.state.researchNodes.find((n) => n.id === 'agriculture_3')!.researched = true;
+    gameTick(irrigated.state);
+
+    expect(plain.state.resources.food, 'the drought farm still produced food').toBeGreaterThan(0);
+    // Irrigation must raise the drought harvest above the unresearched farm's.
+    expect(irrigated.state.resources.food).toBeGreaterThan(plain.state.resources.food);
+  });
+});
+
+describe('completed Mill bonus', () => {
+  /** A farm with one witnessed shift, standing on the tick before its 18:00 production pass. */
+  function farmWorld(mill: 'none' | 'player'): WorldState {
+    const state = initGame({ skipTerrain: true, villageName: 'Audit', size: 'medium', seed: 20_261_112 });
+    const farm = createBuilding(BuildingType.Farm, 100, 100, 30);
+    farm.completed = true;
+    farm.constructionProgress = 100;
+    farm.occupants = [1];
+    const worker = createEntity(EntityType.Human, 100, 100, 1, 400, false,
+      { gender: 'male', name: 'Settler1', surname: 'Test', ageYears: 30, colonyDay: 0 });
+    worker.workerBuildingId = farm.id;
+    worker.scheduleLastWorkedHours = 9;
+    state.entities = [worker];
+    state.buildings = [farm];
+    if (mill !== 'none') {
+      const millBuilding = createBuilding(BuildingType.Mill, 200, 100, 31);
+      millBuilding.completed = true;
+      millBuilding.constructionProgress = 100;
+      state.buildings.push(millBuilding);
+    }
+    state.resources.food = 300;
+    state.tick = tickAtDailyPhase(2, 'production') - 1;
+    return state;
+  }
+
+  function runProductionPass(state: WorldState): number {
+    const before = state.resources.food;
+    gameTick(state);
+    return state.resources.food - before;
+  }
+
+  describe('the Mill farm bonus', () => {
+    it('raises farm output when a completed Mill stands', () => {
+      const none = runProductionPass(farmWorld('none'));
+      const player = runProductionPass(farmWorld('player'));
+
+      expect(none, 'the fixture must produce food, or the bonus proves nothing').toBeGreaterThan(0);
+      expect(player, 'a completed Mill raises farm output').toBeGreaterThan(none);
+    });
+  });
+});
+
+describe('daily production tax and hunting research regressions', () => {
+  afterEach(() => {
+    resetSimRng();
+  });
+
+  /** Deterministic RNG for every world driven below. */
+  function seedRun(): void {
+    resetSimRng();
+    setSimSeed(1);
+    enableSeededGlobalRandom();
+  }
+
+  // ==================== hand-built worlds (mirrors tests/huntingSpot.cleanup.test.ts) ====================
+
+  /**
+   * `maxAge` and `reproductionCooldown` are load-bearing under the real `gameTick`: an absent cooldown
+   * is `NaN`, which fails every `<= 0` check, and `tickWildlife` compares age to `maxAge` for death.
+   */
+  function human(id: number, overrides: Partial<Entity> = {}): Entity {
+    return {
+      id,
+      type: EntityType.Human,
+      x: 100,
+      y: 100,
+      energy: 100,
+      maxEnergy: 100,
+      age: 30,
+      birthYear: 0,
+      birthMonth: 0,
+      birthDay: 0,
+      maxAge: 90,
+      reproductionCooldown: 0,
+      alive: true,
+      size: 10,
+      speed: 2,
+      vx: 0,
+      vy: 0,
+      flash: 0,
+      animFrame: 0,
+      spriteAngle: 0,
+      childrenIds: [],
+      generation: 0,
+      isJuvenile: false,
+      ...overrides,
+    } as Entity;
+  }
+
+  function deer(id: number): Entity {
+    return {
+      id,
+      type: EntityType.Deer,
+      // Beside the hunter at (100,100): the spot's reach is bodies touching (`huntingSpot.huntingKillReach`),
+      // and the walking that closes distance belongs to `humanTick`, which this fixture does not run.
+      x: 112,
+      y: 100,
+      energy: 500,
+      maxEnergy: 500,
+      age: 10,
+      maxAge: 4380,
+      reproductionCooldown: 576,
+      birthYear: 0,
+      birthMonth: 0,
+      birthDay: 0,
+      alive: true,
+      size: 12,
+      speed: 1,
+      vx: 0,
+      vy: 0,
+      flash: 0,
+      animFrame: 0,
+      spriteAngle: 0,
+      childrenIds: [],
+      generation: 0,
+      isJuvenile: false,
+    } as Entity;
+  }
+
+  function building(
+    id: number,
+    type: BuildingType,
+    overrides: Partial<Building> = {},
+  ): Building {
+    return {
+      id,
+      type,
+      x: 80,
+      y: 80,
+      width: 40,
+      height: 40,
+      occupants: [],
+      level: 1,
+      constructionProgress: 100,
+      completed: true,
+      health: 100,
+      maxHealth: 100,
+      spriteScale: 1,
+      buildAnimTimer: 0,
+      ...overrides,
+    };
+  }
+
+  /** Minimal WorldState shaped like the proven hunting-spot fixture. */
+  function baseState(): WorldState {
+    return {
+      tick: 0,
+      paused: false,
+      speed: 1,
+      width: 400,
+      height: 300,
+      entities: [],
+      buildings: [],
+      resources: { wood: 500, stone: 500, food: 0, gold: 0, iron: 0 },
+      storageMax: { wood: 1000, stone: 1000, food: 1000, gold: 1000, iron: 300 },
+      season: Season.Fall,
+      weather: WeatherType.Clear,
+      year: 0,
+      dayInYear: 1,
+      notifications: [],
+      bigNews: [],
+      floatingTexts: [],
+      deathParticles: [],
+      nextFloatingTextId: 1,
+      nextBuildingId: 100,
+      nextEntityId: 100,
+      eventLog: [],
+      screenShakeImpulse: 0,
+      totalBuildingsCompleted: 1,
+      humanPopulation: 2,
+      maxHumanPopulation: 10,
+      workingSettlers: 1,
+      idleSettlers: 1,
+      villageName: 'Low 9',
+      villageReputation: 50,
+      challenges: [],
+      autoSave: false,
+      wildlifeCounts: {
+        grass: 0, rabbits: 0, deer: 0, wolves: 0, foxes: 0, werewolves: 0, wildkin: 0, trees: 0,
+      },
+      foodSpoilageRate: 0,
+      biodiversityIndex: 100,
+      pollutionLevel: 0,
+      disasters: [],
+      tradeRoutes: [],
+      eventsThisYear: [],
+      worldMap: null,
+      yearlyStats: [],
+      lifetimeStats: {},
+      visitorGroups: [],
+      rivalSettlements: [],
+      pendingDiplomacyEvents: [],
+      pendingRaidEvents: [],
+      pendingOutgoingRaidEvents: [],
+      ecoHealthYearsAbove80: 0,
+      firstWeekVisitorSpawned: false,
+      villageLeaderId: null,
+      leaderSinceYear: 0,
+      lastElectionYear: -1,
+      pendingElectionYear: null,
+      electionBuildupNotifiedYear: null,
+      electionCeremony: null,
+      researchNodes: [],
+      unlockedTechs: [],
+      activeResearch: null,
+      researchProgress: 0,
+      festival: null,
+    } as unknown as WorldState;
+  }
+
+  function floatingTexts(state: WorldState): string[] {
+    return state.floatingTexts.map((t) => t.text);
+  }
+
+  const MEAT_TEXT = /^\+(\d+) meat$/;
+
+  function meatText(state: WorldState): string | undefined {
+    return floatingTexts(state).find((t) => MEAT_TEXT.test(t));
+  }
+
+  function meatAmount(text: string): number {
+    return Number(MEAT_TEXT.exec(text)![1]);
+  }
+
+  describe('Town Hall civic pulse (no tax mechanic)', () => {
+    it('does not create tax income or tax notifications', () => {
+      const official = human(1, { workerBuildingId: 10, x: 100, y: 100 });
+      const state = baseState();
+      state.tick = tickAtDailyPhase(3, 'production') - 1;
+      state.entities = [official];
+      state.buildings = [building(10, BuildingType.TownHall, { occupants: [official.id] })];
+      const goldBefore = state.resources.gold;
+      seedRun();
+      gameTick(state);
+      expect(state.resources.gold).toBe(goldBefore);
+      expect(floatingTexts(state).some((text) => /taxes/i.test(text))).toBe(false);
+    });
+  });
+
+  describe('Hunting Spot research multiplier (L29)', () => {
+    function huntWorld(day: number, withStoneSpears: boolean): WorldState {
+      const hunter = human(1, { workerBuildingId: 10, energy: 100, maxEnergy: 100, scheduleLastWorkedHours: 8, speed: 0 });
+      const prey = deer(2);
+      // Keep the target touching the hunter until the production phase.
+      // An animal that wanders away turns this research test into a chase test.
+      prey.x = hunter.x;
+      prey.y = hunter.y;
+      prey.speed = 0;
+      const state = baseState();
+      state.tick = tickAtDailyPhase(day, 'production') - 1;
+      state.entities = [hunter, prey];
+      state.buildings = [
+        building(10, BuildingType.HuntingSpot, { occupants: [hunter.id], huntingSpotPrey: 'deer' }),
+      ];
+      state.humanPopulation = 1;
+      state.researchNodes = createInitialResearchNodes();
+      if (withStoneSpears) {
+        const node = state.researchNodes.find((n) => n.id === 'defense_2');
+        if (!node) throw new Error('defense_2 research node missing');
+        node.researched = true;
+      }
+      return state;
+    }
+
+    /** Workdays only: the Hunting Spot interval is one day, so weekends never fire. */
+    const CANDIDATE_DAYS = [1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18, 21, 22];
+
+    it('L29 — scales its meat output with the hunt_food effect declared by the spear research', () => {
+      // The shot lands on a stateless seeded roll, so find a day where the deterministic hunt
+      // succeeds and then compare the same day with and without the research.
+      let huntDay = 0;
+      for (const day of CANDIDATE_DAYS) {
+        seedRun();
+        if (meatText(gameTick(huntWorld(day, false)))) {
+          huntDay = day;
+          break;
+        }
+      }
+      expect(huntDay, 'no candidate day produced a successful Hunting Spot shot').toBeGreaterThan(0);
+
+      seedRun();
+      const plain = meatText(gameTick(huntWorld(huntDay, false)));
+      seedRun();
+      const withSpears = meatText(gameTick(huntWorld(huntDay, true)));
+
+      expect(plain).toBeDefined();
+      expect(withSpears).toBeDefined();
+      // defense_2 (Stone Spears) declares hunt_food x1.25; the Hunting Spot must scale its meat by it.
+      expect(meatAmount(withSpears!)).toBeGreaterThan(meatAmount(plain!));
+    });
   });
 });

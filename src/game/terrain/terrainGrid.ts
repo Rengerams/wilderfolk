@@ -3,7 +3,8 @@
  * fields, L3 decorations). Consumers go through `tileAt`/`tileTypeAt`; there is no `map.tiles`.
  */
 import { TerrainType, PATH_CELL, type TerrainTile, type WorldMap } from '../gameTypes';
-import { clamp, lerp, valueNoise, hashString } from './noise';
+import { clamp, lerp, valueNoise } from './noise';
+import { hashSalt } from '../simRng';
 // Water classification lives in the terrainTraits leaf so placement and the grid share one
 // rule without introducing a circular import through placementUtils.
 import { isWaterTerrainType } from './terrainTraits';
@@ -247,7 +248,7 @@ function projectTile(map: WorldMap, tx: number, ty: number): TerrainTile | undef
     ),
     elevation: e * 100,
     moisture: mo * 100,
-    variation: valueNoise(wx * 0.032, wy * 0.032, hashString(String(map.seed)) + 7777),
+    variation: valueNoise(wx * 0.032, wy * 0.032, hashSalt(String(map.seed)) + 7777),
   };
 }
 

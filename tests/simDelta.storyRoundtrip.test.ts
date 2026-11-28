@@ -1,3 +1,4 @@
+import { EntityType, type HuntVisual } from '../src/game/gameTypes';
 import { describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import { MapSize } from '../src/game/gameTypes';
@@ -132,5 +133,66 @@ describe('history delta revisions', () => {
     expect(target.populationHistory).toEqual([]);
     expect(target.genealogyRegistry).toBeUndefined();
     expect(extractSimTickDelta(world, [], {}).populationHistory).toEqual([]);
+  });
+});
+
+describe('worker delta visual and HUD transport', () => {
+  it('L59 — ships worker-authored hunt visuals to the display world', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 13 });
+    const visual: HuntVisual = {
+      id: 'hunt-1',
+      hunterId: 1,
+      preyType: EntityType.Deer,
+      fromX: 5,
+      fromY: 6,
+      toX: 30,
+      toY: 40,
+      startedAtTick: world.tick,
+      startedAtMs: 1_000,
+      success: true,
+      foughtBack: false,
+    };
+    world.huntVisuals = [visual];
+
+    const delta = extractSimTickDelta(world, undefined, {
+      cloneMode: 'isolated',
+    });
+    expect(delta.huntVisuals).toEqual([visual]);
+
+    const display = initGame({ size: MapSize.Medium, seed: 13 });
+    display.huntVisuals = [];
+    applySimTickDelta(display, delta, { cloneMode: 'isolated' });
+    expect(display.huntVisuals).toEqual([visual]);
+
+    // The worker prunes the arrows itself; the removal has to reach the display too.
+    world.huntVisuals = [];
+    const cleared = extractSimTickDelta(world, undefined, {
+      cloneMode: 'isolated',
+    });
+    applySimTickDelta(display, cleared, { cloneMode: 'isolated' });
+    expect(display.huntVisuals).toEqual([]);
+  });
+
+  it('X5 — ships the workforce and village-mood HUD counters', () => {
+    const world = initGame({ size: MapSize.Medium, seed: 14 });
+    world.workingSettlers = 5;
+    world.idleSettlers = 2;
+    world.villageHappiness = 63;
+    world.villageCanHeat = false;
+
+    const delta = extractSimTickDelta(world, undefined, {
+      cloneMode: 'isolated',
+    });
+    expect(delta.workingSettlers).toBe(5);
+    expect(delta.idleSettlers).toBe(2);
+    expect(delta.villageHappiness).toBe(63);
+    expect(delta.villageCanHeat).toBe(false);
+
+    const display = initGame({ size: MapSize.Medium, seed: 14 });
+    applySimTickDelta(display, delta, { cloneMode: 'isolated' });
+    expect(display.workingSettlers).toBe(5);
+    expect(display.idleSettlers).toBe(2);
+    expect(display.villageHappiness).toBe(63);
+    expect(display.villageCanHeat).toBe(false);
   });
 });

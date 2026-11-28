@@ -3,8 +3,6 @@
  * `getBuildingCenter` is the one accessor; focus callers must not add half a footprint to it.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   getBuildingCenter,
   isFootprintWithinMapBounds,
@@ -36,16 +34,4 @@ describe('a building is centred on its own x/y', () => {
     ).toBe(false);
   });
 
-  it('leaves no focus caller adding half a footprint', () => {
-    const files = [
-      'src/game/priorityAlerts.ts',
-      'src/game/focusHints.ts',
-      'src/components/tabPanels/VillageTabPanel.tsx',
-    ];
-    for (const file of files) {
-      const source = readFileSync(resolve(process.cwd(), file), 'utf8');
-      expect(source, `${file} focuses a corner again`).not.toMatch(/\.(x|y) \+ \w+\.(width|height) \/ 2/);
-      expect(source, `${file} does not ask for the centre`).toContain('getBuildingCenter(');
-    }
-  });
 });

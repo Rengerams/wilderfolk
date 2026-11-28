@@ -324,7 +324,7 @@ export const SIMULATION_DECISIONS = {
       'household membership (couple + minor children)',
     ],
     scheduledFrom: 'gameTick tick boundary + tickLayerAssign.syncResidenceOccupants (mirror); tickLayerAssign.assignMissingResidences (assignment); commands.ts "assignResidentToBuilding"',
-    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts, tests/housingPulse.audit.test.ts',
+    testFile: 'tests/housingPlanner.contract.test.ts, tests/housingAuthority.pipeline.test.ts, tests/housingPipeline.invariants.test.ts, tests/housingDiagnostics.test.ts, tests/adultChild.moveOutTarget.test.ts, tests/residenceCommuteRelocation.test.ts, tests/divorceHousing.custody.test.ts, tests/leaderHouse.successionHousehold.test.ts, tests/simulation.invariants.test.ts, tests/longRunColony.integration.test.ts, tests/residencyCapacity.writers.test.ts, tests/housing.custodianSplit.test.ts, tests/housingPipeline.invariants.test.ts',
   },
   construction: {
     owner: 'buildingStaffingActions.assignBuilderToBuilding + workforce.assignBuilderInPlace (crew membership); dailyBuildingEconomy.tickBuildingProgress (progress advance at 23:00 after the latest legal work shift)',
@@ -373,7 +373,7 @@ export const SIMULATION_DECISIONS = {
       'villageForge.completed',
     ],
     scheduledFrom: 'tickLayerDaily',
-    testFile: 'tests/economyAudit.storageCaps.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
+    testFile: 'tests/storageCap.test.ts, tests/dayCycle.tavern.test.ts, tests/personality.workIntegration.test.ts, tests/workSkillAttribution.accrual.test.ts, tests/forge.cadence.test.ts, tests/production.attendancePacing.test.ts',
   },
   wildlifePredation: {
     owner: 'tickLayerSystems.tickWildlife — sole wildlife AI owner (hunt, predation, metabolism, reproduction); tickLayerSystems.tickWolfRecruitment — rare wolf migration; wildlifePopulationPolicy.getWildlifeCarryingCapacity owns the prey-supported breeding/migration cap; speciesConfig.getPreyEnergyGain owns prey energy; GRAZER_METABOLISM owns grazer metabolism',
@@ -404,7 +404,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Weighted occupied buildable land replaces building-count penalties. Industrial emissions use witnessed work attendance and industrial type; pollution scales with map area and forestry research. Completed preserve bonuses are capped; immutable settled inputs explain the recorded score. Settlement runs at 18:00 after normal production or 23:00 after deferred production and before construction; the stage owner consumes those same metrics once.',
     writes: ['ecosystemHealth', 'pollutionLevel', 'biodiversityIndex', 'settledEcology', 'ecologySettlementPending', 'pendingEcosystemHealthDelta', 'pendingPollutionDelta', 'valleyStage', 'valleyStageSinceDay', 'valleyRawStressStreakDays', 'valleyRawCalmStreakDays', 'valleyLastStageNotifyDay', 'eventLog', 'notifications', 'bigNews'],
     scheduledFrom: 'tickLayerDaily → dailyWorldEvents.settleDailyEcology (18:00 via tickDailyWorldEvents or 23:00 deferred) → tickEcosystemMetrics / tickValleyEcologyStage',
-    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/medium-C2-story.test.ts, tests/ecologyStoryDelta.survivesRecompute.test.ts, tests/production.attendancePacing.test.ts, tests/medium-persistence.test.ts',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/ecologyStoryDelta.survivesRecompute.test.ts, tests/production.attendancePacing.test.ts, tests/saveMigration.roundtrip.test.ts',
   },
   humanMortality: {
     owner: 'humanRelationships.tryDailyHumanMortality — daily age and sudden-illness roll; hospitalCare.getPreventiveCareMortalityMultiplier — preventive care capacity; dayCycle.killHuman — death transition',
@@ -412,7 +412,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'The existing human tick samples living assigned doctors once per calendar boundary. One doctor per fifty residents can halve the player sudden-illness risk at full coverage; empty, dead, jailed or deployed doctors provide no coverage. Old age and foreign mortality are unchanged.',
     writes: ['human.alive', 'human.energy', 'eventLog', 'deathParticles'],
     scheduledFrom: 'humanTick.tickHumans → tryDailyHumanMortality → killHuman',
-    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/calendarPhase.auditRegressions.test.ts',
+    testFile: 'tests/dailyEcology.pollutionGrading.test.ts, tests/dayCycle.cadence.test.ts',
   },
   wildlifeReplenishment: {
     owner: 'worldGen.replenishDepletedWildlife — wildlife restocking; wildlifePopulationPolicy.WILDLIFE_POPULATION_POLICY and getWildlifeCarryingCapacity — sole refill targets and prey-supported predator caps',
@@ -428,7 +428,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: '18:00 daily gating offers and schedules the 24-in-game-hour event; one realtime advance owns the 288-tick three-phase demonstration. Modern state is saved in WorldState, worker delta and rollback. Player story commands use the same owner; old flag-based saves continue resolving the legacy path.',
     writes: ['storyFlags', 'inventionFair', 'pendingStoryEvents', 'resources.wood', 'resources.gold', 'villageReputation', 'building.health', 'human.energy', 'human.needs.stamina', 'eventLog', 'bigNews', 'notifications'],
     scheduledFrom: 'tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → maybeOfferInventionFair/tickInventionFair; tickLayerRealtime → tickInventionFairRealtime; simWorker.commands respondToStoryEvent → storyEvents.respondToStoryEvent → inventionFair.resolveInventionFair',
-    testFile: 'tests/medium-C2-story.test.ts, tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
+    testFile: 'tests/inventionFair.simulation.test.ts, tests/inventionFair.storageCap.test.ts, tests/inventionFair.invalidChoices.test.ts, tests/actionOutcome.test.ts',
   },
   authoredStoryExpiry: {
     owner: 'storyEvents.ts — tickPendingStoryEvents and the expire* resolvers; deerParliament/travelingTheatre/weddingDiplomacy/rumourLedger own their own resolved flags',
@@ -463,7 +463,7 @@ export const SIMULATION_DECISIONS = {
       'human.indoorBuildingId',
     ],
     scheduledFrom: 'tickHumans',
-    testFile: 'tests/production.attendancePacing.test.ts, tests/simBatch.offscreenThrottle.test.ts, tests/medium-A-movement.test.ts, tests/humanHunting.ledger.test.ts',
+    testFile: 'tests/production.attendancePacing.test.ts, tests/humanTick.hotPathIndexes.test.ts, tests/humanMovement.test.ts, tests/pathfinding.test.ts, tests/humanHunting.ledger.test.ts',
   },
   dailyRelationships: {
     owner: 'tickLayerDaily at 06:00 — relationships.advanceSocialRelationships (friendships/feuds), simulation/humanRelationships.advanceYouthLove and reconcileCourtships, leaderHouse.syncLeaderHouseResidency (delegated housing); at 23:00 — apprenticeships.advanceApprenticeships after all legal work shifts',
@@ -483,7 +483,7 @@ export const SIMULATION_DECISIONS = {
       'human.apprenticeId',
     ],
     scheduledFrom: 'tickLayerDaily — DAILY_PHASE_HOURS.relationships (social and housing at 06:00), DAILY_PHASE_HOURS.construction (apprenticeships at 23:00); humanTick work commute/presence; humanStatus read-only projection',
-    testFile: 'tests/phase7.social.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
+    testFile: 'tests/apprenticeships.test.ts, tests/relationships.sharedHomeFriendship.test.ts, tests/relationships.friendCapAndFeudEnd.test.ts, tests/relationshipDiagnostics.test.ts, tests/villageLeadership.test.ts, tests/humanGraduation.education.test.ts, tests/immigration.composition.test.ts',
   },
   yearlyWorldEvents: {
     owner: 'dailyWorldEvents.ts — tickYearBoundaryWorldEvents, tickDailyWorldEvents, tickFestivals, normalizeFestivalState, repairStaleFestivalOnLoad; groupEvents.ts — rollYearlyWorldEvent; townHall.ts — hostTownFestival, getTownHallFestivalCooldownTicks',
@@ -500,7 +500,7 @@ export const SIMULATION_DECISIONS = {
       'notifications',
     ],
     scheduledFrom: 'tickLayerDaily.tickYearBoundaryWorldEvents (00:00); dailyWorldEvents.tickDailyWorldEvents (18:00) → rollYearlyWorldEvent and tickFestivals; townHall.hostTownFestival via player command',
-    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/medium-C2-story.test.ts, tests/festival.behavior.test.ts, tests/dayCycle.tavern.test.ts',
+    testFile: 'tests/dailyEconomy.ledgerEcology.test.ts, tests/inventionFair.simulation.test.ts, tests/festival.behavior.test.ts, tests/dayCycle.tavern.test.ts',
   },
   grassRegrowth: {
     owner: 'dailyGrassEcology.ts — tickGrassDaily; grassEcology.ts — GRASS_GROWTH_PER_DAY, getGrassGrowthMultiplier; ecosystemPressure.ts — getGrazingPressureReport (read-only estimate)',
@@ -569,7 +569,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Exactly once at 00:00, before attendance settlement, living adult player humans decay skills that were not practiced. Only the witnessed, site-attributed trade from that day is exempt; a held job alone is not. No-op decay does not dirty the entity profile revision. Required CI: calendar-scheduler gameTick regression.',
     writes: ['human.skills', 'human.profileRevision'],
     scheduledFrom: 'gameTick.ts → tickLayerDaily.ts 00:00 → skills.decayIdleSkills',
-    testFile: 'tests/calendarPhase.auditRegressions.test.ts, tests/skills.attendanceOwner.test.ts',
+    testFile: 'tests/dayCycle.cadence.test.ts, tests/skills.attendanceOwner.test.ts',
   },
   socialFeedback: {
     owner: 'humanSocial.ts — simAmbientChatNeighbors, simSettlerPairChat; socialLife.ts — pickSocialImpulse, tryWorkplaceBanter, tryNeighborGreeting, isSocialStaggerTick, isGreetingHour',
@@ -577,7 +577,7 @@ export const SIMULATION_DECISIONS = {
     cadenceNote: 'Human-social owner only selects real nearby eligible participants and social motives at the shared work/morning/stagger gates; reciprocal marriage and the same proximity radius govern spouse care; the physiology and hospital owners supply break and medical eligibility, and nearest completed venues are selected consistently from cached or direct pools. Healthy pregnancy is not a hospital referral. A scene is requested at most once per person per colony day across every event family (hasDialogueSceneOnDay counts greeting, banter and solo scenes together), even though the gate itself is evaluated per tick; the dialogue router selects text and humanChat executes sessions. Affair tryst speech is sampled on the initiating settler\'s hourly ID-staggered tick (11.4% opportunity, formerly 1% each active tick); tryst progress stays realtime. The spatial query is adaptive and may legitimately use a bounded linear candidate scan.',
     writes: ['floatingTexts (hearts)', 'small courtship progress'],
     scheduledFrom: 'humanTick.ts realtime social/leisure path, with SOCIAL_STAGGER on neighbour selection',
-    testFile: 'tests/phase7.social.test.ts, tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts, tests/socialCadence.oneScenePerDay.test.ts',
+    testFile: 'tests/socialLife.dialogueBusy.test.ts, tests/humanChat.ambientPairing.test.ts, tests/socialCadence.oneScenePerDay.test.ts',
   },
   dialogueContent: {
     owner: 'dialogueTrees.ts — buildCanonicalDialogueBank, freezeDialogueTree, requestDialogue, hasDialogueSceneOnDay, rememberDialogueLine, dialogueHoursFromNominalTicks, maybeDialogueChat, pickRandomChatContext, tryAmbientRandomDialogue, contextualAmbientScene, parsePresentationDialogue, bindNumberedPresentationSpeakers, indexDialogueBank, preloadDialogueBank',
@@ -623,7 +623,7 @@ export const SIMULATION_DECISIONS = {
       'human.partnerId',
     ],
     scheduledFrom: 'humanTick.ts (per realtime tick, observed pair sleep, distance and shared-duty gates) → humanRelationships.findCourtshipPartner / canAdvanceCourtship / tryCompleteCourtshipMarriage',
-    testFile: 'tests/phase7.social.test.ts, tests/courtship.exclusivity.test.ts',
+    testFile: 'tests/courtship.exclusivity.test.ts',
   },
   affairs: {
     owner: 'humanRelationships.ts — tryDailyAffairEncounter, recordAffairTrystSite, tryDailyAffairGossip, tryExposeCaughtAffairForPair, exposeAffair',
@@ -641,7 +641,7 @@ export const SIMULATION_DECISIONS = {
       'villageReputation',
     ],
     scheduledFrom: 'humanTick.ts tickHumans → one daily lover-specific waking-hour gate for tryDailyAffairEncounter and tryDailyAffairGossip; realtime meeting and caught-in-act proximity, with shared tryst site read-only in humanRelationships.getAffairTrystBuilding and the shared approach point in buildingAccess.buildingAccessPoint',
-    testFile: 'tests/affair.cadence.test.ts, tests/eventLog.duplicatesAndNotifications.test.ts, tests/phase7.social.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
+    testFile: 'tests/affair.cadence.test.ts, tests/eventLog.duplicatesAndNotifications.test.ts, tests/electionGossip.dedup.test.ts, tests/affairTrystSite.walkIn.test.ts, tests/settlers.indoors.test.ts',
   },
   conception: {
     owner: 'humanRelationships.ts — tryDailyConception (ONLY conception decision/roll owner; the married, youth and affair routes all apply the same conception activity factor); pregnancy.ts — startPregnancy (sole pregnancy-start writer, called by resolveConception)',
@@ -655,7 +655,7 @@ export const SIMULATION_DECISIONS = {
       'human.pregnancyDueProgress',
     ],
     scheduledFrom: 'humanTick.ts (isNewCalendarDay gate) → tryDailyConception → resolveConception → pregnancy.startPregnancy',
-    testFile: 'tests/phase7.social.test.ts, tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
+    testFile: 'tests/conceptionEvent.labelling.test.ts, tests/youthConception.ageFloor.test.ts, tests/humanLifecycle.test.ts',
   },
   pregnancyBirth: {
     owner: 'pregnancy.ts — startPregnancy (validates and freezes conception identity), advancePregnancy (one progress tick and due verdict), clearPregnancy (delivery reset), normalizePregnancyElapsedProgress (legacy elapsed rule), rollPregnancyDueProgress (only term formula), normalizePregnancyDueProgress (only invalid-due rule), isValidPregnancyDueProgress (validity), getPregnancyProgressFraction; humanLifecycle.ts — tickPregnancyAndBirth and isPregnancyHospitalDue (delivery/threshold consumers; no pregnancy field writes); settlerTraits.ts — inheritGenome is the only birth genetics rule',
@@ -671,7 +671,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/bigNews/floatingTexts',
     ],
     scheduledFrom: 'humanTick.ts pregnancy gate → humanLifecycle.tickPregnancyAndBirth → pregnancy.advancePregnancy / clearPregnancy → settlerTraits.inheritGenome (birth-key seeded stream); entityFactory.createEntity(opts.pregnant, opts.pregnantById) → pregnancy.startPregnancy (arrival spawns require an explicit biological father; no spouse fallback)',
-    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, tests/duplicationA.remaining.test.ts',
+    testFile: 'tests/humanLifecycle.test.ts, tests/hospitalWalk.regression.test.ts, tests/pregnancyHospitalWork.test.ts, tests/settlers.indoors.test.ts, tests/workAbsence.reasons.test.ts, tests/conceptionEvent.labelling.test.ts, tests/personality.romanceContext.test.ts, tests/settlerTraits.test.ts, scripts/check-source-guards.mjs',
   },
   wildkinLineage: {
     owner: 'humanLifecycle.ts — tickPregnancyAndBirth (human mother + closest deer father); tickLayerSystems.ts — tickWildlife (Wildkin parents and juvenile guardian steering); genealogyRegistry.ts — recordGenealogyBirth, recordGenealogyDeath, syncGenealogyRegistry (sole persisted family owner); wildkinChronicle.ts — logWildkinBirth, logWildkinDeath, tickWildkinChronicle (sole log owner)',
@@ -702,7 +702,7 @@ export const SIMULATION_DECISIONS = {
       'eventLog/title (Moonslayer)',
     ],
     scheduledFrom: 'tickLayerRealtime.ts → tickMoonHowlerCycle (22:00 on full-moon day through next-day 06:00; form ends at 06:00)',
-    testFile: 'tests/moonHowler.test.ts, tests/low-3-moon-lifecycle.test.ts, tests/medium-persistence.test.ts',
+    testFile: 'tests/moonHowler.test.ts',
   },
   leadership: {
     owner: 'leaderHouse.ts — syncLeaderHouseResidency, applyLeaderOccupation; election and scoring: villageLeadership.ts — getLeadershipScoreBreakdown (real recorded workdays, two strongest trades, restrained family prestige, social trust, battle/campaign record), getYearsUntilElectionForYear (shared regular term calendar), tickElectionBuildup, tryStartTermElectionCeremony, startElectionCeremony (immutable ballot-time names), tryStartVacancyElectionCeremony, tickElectionCeremony, tickElectionGossip, creditedCeremonyBallot; dailyWorldEvents.ts — tickYearBoundaryWorldEvents (midnight scheduling), tickDailyWorldEvents (18:00 vacancy scheduling); ceremony attendance: villageLeadership.ts — isCeremonyAttendee, getElectionGatherTarget (read-only)',
@@ -725,7 +725,7 @@ export const SIMULATION_DECISIONS = {
       'notifications/bigNews',
     ],
     scheduledFrom: 'tickLayerDaily.ts 00:00 → dailyWorldEvents.tickYearBoundaryWorldEvents → villageLeadership term owner; tickLayerDaily.ts 18:00 → dailyWorldEvents.tickDailyWorldEvents → villageLeadership vacancy owner; tickLayerDaily.ts 06:00 → leaderHouse.syncLeaderHouseResidency',
-    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/medium-N5-electionGatherSlot.test.ts, tests/calendarPhase.auditRegressions.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
+    testFile: 'tests/leaderHouse.workforce.test.ts, tests/villageLeadership.test.ts, tests/dayCycle.cadence.test.ts, tests/saveLoad.a1CalendarRepair.test.ts',
   },
   raidCombat: {
     owner: 'militiaBalance.ts — canBeMustered (shared adult muster eligibility with optional elected-commander job exemption); frontierCombat.ts — getRaidParticipants, canLaunchRaidOnRival (read-only shared raid preview/action guard: check arms before participants, explain imprisoned leaders with saved release ticks), queueRaidDefense, tickPendingRaidEvents, tickPendingOutgoingRaidEvents, resolveIncomingRaidInPlace, beginRaidReturn, resolveOutgoingRaidCombat, persistBattleAftermath, resolveRaidVictory, isCounterRaidOnRival',
@@ -811,7 +811,7 @@ export const SIMULATION_DECISIONS = {
       'validated requested state transition (building/assignment/recipe/mode fields)',
     ],
     scheduledFrom: 'hooks/useCanvasInteractions.handleMouseUp (Alt-drag confirmation) → GameWorkerHost command channel; main-thread fallback in gameLoop',
-    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, tests/keyboardGuards.contract.test.ts',
+    testFile: 'tests/commands.validation.test.ts, tests/workerCommand.roundtrip.test.ts, scripts/check-source-guards.mjs',
   },
 } as const satisfies Record<DecisionKey, DecisionOwner>;
 
@@ -830,7 +830,7 @@ export const STRATEGIC_MAP_PRESENTATION = {
   cadence: 'Read-only React render of the Frontier subject window',
   scheduledFrom: 'CitizenOverviewScreen.tsx → GameWindow.tsx → FrontierTabPanel.tsx → FrontierPanel.tsx → StrategicWorldMap.tsx',
   writes: [] as readonly string[],
-  testFile: 'tests/strategicWorldMap.projection.test.ts, tests/strategicWorldMap.windowLayout.test.ts',
+  testFile: 'tests/strategicWorldMap.projection.test.ts, scripts/check-source-guards.mjs',
 } as const;
 
 /** All declared decision keys as a typed array. */

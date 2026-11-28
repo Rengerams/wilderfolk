@@ -3,8 +3,6 @@
  * line per label on a day that finishes a run of buildings.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { createBuilding, initGame } from '../src/game/worldGen';
 import { BUILDING_CONFIGS, BuildingType, Season } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
@@ -14,11 +12,6 @@ import { tickDailyWorldEvents } from '../src/game/dailyWorldEvents';
 import { invalidateEntityByIdMap } from '../src/game/entityIndex';
 import { isPlayerHuman } from '../src/game/playerHuman';
 import { DAYS_PER_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/game/dayCycle';
-
-const worldEventsSource = readFileSync(
-  fileURLToPath(new URL('../src/game/dailyWorldEvents.ts', import.meta.url)),
-  'utf8',
-);
 
 /** A day in the far-future calendar, so no festival from world gen is already running. */
 function dayTick(dayInYear: number): number {
@@ -64,13 +57,6 @@ describe('a festival name is never doubled in the seasonal chronicle line', () =
     const started = world.eventLog.filter((entry) => / began in the village$/.test(entry.message));
     expect(started).toHaveLength(1);
     expect(started[0]!.message).not.toMatch(/\bfestival\b.*\bfestival\b/i);
-  });
-
-  it('writes both festival paths from one message shape, so neither can append the word again', () => {
-    // Two writers build the line (the seasonal and the seeded one); this pins the shape they share.
-    expect(worldEventsSource.match(/began in the village`/g)).toHaveLength(2);
-    expect(worldEventsSource).not.toMatch(/festival began in the village/);
-    expect(worldEventsSource).not.toMatch(/festival\$\{/);
   });
 });
 

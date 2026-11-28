@@ -39,9 +39,9 @@ describe('saved birthdates survive a load', () => {
     const loaded = roundTrip(state);
     const after = new Map(players(loaded).map((human) => [human.id, birthday(human)]));
 
-    for (const [id, date] of before) {
-      expect(after.get(id), `settler ${id}`).toBe(date);
-    }
+    expect(after).toEqual(before);
+    const savedAgain = roundTrip(loaded);
+    expect(new Map(players(savedAgain).map((human) => [human.id, birthday(human)]))).toEqual(before);
   });
 
   it('still recovers an age for a save whose birth calendar is missing', () => {
@@ -56,10 +56,11 @@ describe('saved birthdates survive a load', () => {
 
     const loaded = roundTrip(state);
     const colonyDay = getColonyDay(loaded);
-    for (const human of players(loaded)) {
-      const stored = storedAges.get(human.id);
-      if (stored === undefined) continue;
-      expect(Math.abs(computeHumanAgeYears(human, colonyDay) - stored)).toBeLessThan(1);
+    const restored = players(loaded);
+    expect(new Set(restored.map((human) => human.id))).toEqual(new Set(storedAges.keys()));
+    for (const human of restored) {
+      const stored = storedAges.get(human.id)!;
+      expect(Math.abs(computeHumanAgeYears(human, colonyDay) - stored), `settler ${human.id}`).toBeLessThan(1);
     }
   });
 
@@ -77,7 +78,7 @@ describe('saved birthdates survive a load', () => {
 
     const loaded = roundTrip(state);
 
-    expect(players(loaded).length).toBeGreaterThan(0);
+    expect(new Set(players(loaded).map((human) => human.id))).toEqual(new Set(settlers.map((human) => human.id)));
     for (const human of players(loaded)) {
       expect(birthday(human), `settler ${human.id}`).toBe('1-0-0');
     }

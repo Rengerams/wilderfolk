@@ -1,3 +1,4 @@
+import { SPECIES_CONFIG } from '../src/game/speciesConfig';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_CHILDHOOD_YEARS } from '../src/game/daycycleconstants';
 /**
  * A child graduates into adulthood exactly once and keeps the education payoff: the daily age sync
@@ -11,7 +12,7 @@ import { getColonyDay, setHumanBirthFromAge, syncHumanAgeFromCalendar, tryGradua
 import { SCHOOL_GRADUATION_DAYS, SCHOOL_EDUCATED_DAYS, SCHOOL_FULL_EDUCATION_DAYS, applyEducationGraduation, getEducationTier } from '../src/game/education';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
 import { grantRareBirthTalent } from '../src/game/simulation/humanLifecycle';
-import { createEntity } from '../src/game/entityFactory';
+import { createEntity, finalizeSettlerAge } from '../src/game/entityFactory';
 
 const CHILD_ID = 7;
 const ADULT_SIZE = 14;
@@ -159,5 +160,51 @@ describe('rare natural talent at birth', () => {
     expect(talented).toBeLessThan(150);
     expect(extraordinarilyTalented).toBeGreaterThan(0);
     expect(extraordinarilyTalented).toBeLessThan(30);
+  });
+});
+
+describe('L21/L22 factory juvenile threshold', () => {
+  it('keeps the auto-detected size in step with the childhood floor', () => {
+    const humanSize = SPECIES_CONFIG[EntityType.Human].size;
+
+    const child = createEntity(EntityType.Human, 10, 10, 899, undefined, undefined, {
+      ageYears: 11,
+      colonyDay: 0,
+    });
+    expect(child.isJuvenile).toBe(true);
+    expect(child.size).toBe(humanSize * 0.5);
+
+    // The childhood floor *is* the adult floor, so a 12–17 year old is a juvenile too and must not be
+    // created at half size with `isJuvenile === false` — the flag and `size` have to agree.
+    const teen = createEntity(EntityType.Human, 10, 10, 900, undefined, undefined, {
+      ageYears: 13,
+      colonyDay: 0,
+    });
+    expect(teen.isJuvenile).toBe(true);
+    expect(teen.size).toBe(humanSize * 0.5);
+
+    const youth = createEntity(EntityType.Human, 10, 10, 901, undefined, undefined, {
+      ageYears: HUMAN_CHILDHOOD_YEARS - 1,
+      colonyDay: 0,
+    });
+    expect(youth.isJuvenile).toBe(true);
+    expect(youth.size).toBe(humanSize * 0.5);
+
+    const adult = createEntity(EntityType.Human, 10, 10, 902, undefined, undefined, {
+      ageYears: HUMAN_CHILDHOOD_YEARS,
+      colonyDay: 0,
+    });
+    expect(adult.isJuvenile).toBe(false);
+    expect(adult.size).toBe(humanSize);
+
+    const mismatchedChild = createEntity(EntityType.Human, 10, 10, 903, undefined, false, { ageYears: 8 });
+    expect(mismatchedChild.isJuvenile).toBe(true);
+    expect(mismatchedChild.size).toBe(humanSize * 0.5);
+    const mismatchedAdult = createEntity(EntityType.Human, 10, 10, 904, undefined, true, { ageYears: 30 });
+    expect(mismatchedAdult.isJuvenile).toBe(false);
+    expect(mismatchedAdult.size).toBe(humanSize);
+    finalizeSettlerAge(mismatchedChild, { year: 1, dayInYear: 1, tick: 0 });
+    expect(mismatchedChild.isJuvenile).toBe(false);
+    expect(mismatchedChild.size).toBe(humanSize);
   });
 });

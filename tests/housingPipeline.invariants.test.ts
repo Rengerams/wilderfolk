@@ -1,16 +1,33 @@
+import { finishedBuilding } from '../src/test/factories';
+import * as housingPipeline from '../src/game/housingPipeline';
+import { isPlayerHuman } from '../src/game/playerHuman';
+import { setSimSeed } from '../src/game/simRng';
+import { createEntity } from '../src/game/entityFactory';
+import { createBuilding, initGame } from '../src/game/worldGen';
 /**
  * Housing invariants over generated colonies: what the pipeline promises the world, not how it
  * computes it. Every assertion reads settlement state, never a private helper.
  */
 import { describe, expect, it } from 'vitest';
-import { BuildingType } from '../src/game/gameTypes';
-import type { Entity } from '../src/game/gameTypes';
+import { BuildingType, EntityType, Season, LEADER_OCCUPATION } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
+import type { TickContext } from '../src/game/simulation/simulationTypes';
+import { LAYER_ASSIGN_INTERVAL, LAYER_ASSIGN_PHASE_TICK, tickLayerAssign } from '../src/game/tickLayerAssign';
+import { getOpenBeds, getOpenPlayerBeds, getPopulationGrowthReport } from '../src/game/populationGrowth';
 import {
   assignMissingResidences,
+  auditHousingSharingIssues,
+  rebalanceOvercrowdedResidences,
+  syncResidenceOccupants,
+  tryMoveOutOfFamilyHome,
   type HousingReport,
 } from '../src/game/housingPipeline';
 import {
   buildResidenceOccupancy,
+  buildFamilyGroups,
+  collectFamilyMembers,
+  findLivingHuman,
+  indexFamilyRelations,
   getResidenceCapacity,
   isLeaderHouseResidence,
   isResidenceOccupantEntity,
@@ -156,5 +173,488 @@ describe('generated housing colonies', () => {
     expect(report.violations).toEqual([]);
     expect(buildResidenceOccupancy(humans).get(home.id)).toBe(getResidenceCapacity(home));
     expect(movers.filter((person) => person.residenceBuildingId == null)).toHaveLength(3);
+  });
+});
+
+/** Day zero's final daily sweep: the weekly safety-audit branch runs on ticks whose day index is 0 mod 7. */
+const WEEKLY_AUDIT_TICK = LAYER_ASSIGN_PHASE_TICK + LAYER_ASSIGN_INTERVAL * 3;
+
+function worldWith(entities: Entity[], buildings: WorldState['buildings'], tick: number): WorldState {
+  return {
+    entities,
+    buildings,
+    tick,
+    year: 0,
+    dayInYear: tick,
+    season: Season.Spring,
+    eventLog: [],
+    villageLeaderId: null,
+    width: 1000,
+    height: 1000,
+    humanPopulation: entities.length,
+    totalBuildingsCompleted: buildings.length,
+    resources: { wood: 1000, stone: 1000, food: 10000, gold: 1000, iron: 1000 },
+  } as unknown as WorldState;
+}
+
+/** The context `gameTick` assembles for the assignment layer; `newEntities` is this tick's spawns. */
+function assignContext(world: WorldState, humans: Entity[], newEntities: Entity[] = []): TickContext {
+  const typed = {} as Record<EntityType, Entity[]>;
+  for (const type of Object.values(EntityType)) typed[type] = [];
+  for (const entity of humans) typed[entity.type].push(entity);
+  return {
+    width: world.width,
+    height: world.height,
+    hourOfDay: 9,
+    season: world.season,
+    grassMult: 1,
+    reproMult: 1,
+    winterPenalty: 1,
+    canHeat: true,
+    byType: typed,
+    aliveEntities: humans,
+    newEntities,
+    updatedBuildings: world.buildings,
+    roadBuildings: [],
+    playerHumans: humans,
+    entityById: new Map(humans.map((entity) => [entity.id, entity])),
+    buildingById: new Map(world.buildings.map((site) => [site.id, site])),
+    predators: [],
+  } as TickContext;
+}
+
+describe('same-tick newcomers reach the assignment pulse', () => {
+  it('seats a newborn the birth tick could not fit in the mother’s full home', () => {
+    const house = building(1, BuildingType.House);
+    const mansion = building(2, BuildingType.Mansion);
+    const mother = human(10, { residenceBuildingId: house.id, gender: 'female' });
+    const father = human(11, { residenceBuildingId: house.id, partnerId: mother.id });
+    mother.partnerId = father.id;
+    const children = [12, 13, 14, 15].map((id) => human(id, {
+      residenceBuildingId: house.id, motherId: mother.id, fatherId: father.id,
+      isJuvenile: true, age: 5,
+    }));
+    mother.childrenIds = [12, 13, 14, 15];
+    const newborn = human(900, {
+      motherId: mother.id, fatherId: father.id, isJuvenile: true, age: 0,
+    });
+    const existing = [mother, father, ...children];
+    const world = worldWith(existing, [house, mansion], LAYER_ASSIGN_PHASE_TICK);
+    // `playerHumans` and `byType` are the tick-start list, so the newborn travels only in newEntities.
+    const context = assignContext(world, existing, [newborn]);
+
+    tickLayerAssign(world, context);
+
+    expect(newborn.residenceBuildingId, 'the same pulse seats the newborn with the family').toBe(mansion.id);
+    expect(mother.residenceBuildingId).toBe(mansion.id);
+    expect(mother.residenceBuildingId).toBe(newborn.residenceBuildingId);
+  });
+
+  it('seats a settler spawned into the tick context before the pulse', () => {
+    const house = building(1, BuildingType.House);
+    const arrival = human(900);
+    const world = worldWith([], [house], LAYER_ASSIGN_PHASE_TICK);
+
+    tickLayerAssign(world, assignContext(world, [], [arrival]));
+
+    expect(arrival.residenceBuildingId).toBe(house.id);
+  });
+});
+
+describe('the weekly audit observes the housing invariant report', () => {
+  it('names a minor left without a home while their custodian is housed', () => {
+    const house = building(1, BuildingType.House);
+    const mother = human(10, { residenceBuildingId: house.id, gender: 'female' });
+    const child = human(11, { motherId: mother.id, isJuvenile: true, age: 6 });
+    const tenants = [12, 13, 14, 15, 16].map((id) => human(id, { residenceBuildingId: house.id }));
+    const world = worldWith([mother, child, ...tenants], [house], WEEKLY_AUDIT_TICK);
+
+    tickLayerAssign(world, assignContext(world, [mother, child, ...tenants]));
+
+    expect(mother.residenceBuildingId).toBe(house.id);
+    expect(child.residenceBuildingId).toBeUndefined();
+    const auditLine = world.eventLog.find((entry) => entry.message.startsWith('Housing audit'));
+    expect(auditLine, 'the weekly audit writes its violations to the chronicle').toBeDefined();
+    expect(auditLine?.message).toContain(`child #${child.id} has no home`);
+  });
+
+  it("accepts a separated leader's minor living with that parent in the manor", () => {
+    const manor = building(0, BuildingType.LeaderHouse);
+    const home = building(565, BuildingType.House);
+    const mother = human(2383, {
+      age: 18, gender: 'female', occupation: LEADER_OCCUPATION, residenceBuildingId: manor.id,
+      childrenIds: [4913], pastPartnerTicks: { 2552: 88330 },
+    });
+    const father = human(2552, {
+      age: 18, gender: 'male', residenceBuildingId: home.id, childrenIds: [4913],
+      pastPartnerTicks: { 2383: 88330 },
+    });
+    const child = human(4913, {
+      age: 3, isJuvenile: true, motherId: mother.id, fatherId: father.id, residenceBuildingId: manor.id,
+    });
+    const people = [mother, father, child];
+    const world = worldWith(people, [manor, home], WEEKLY_AUDIT_TICK);
+    world.villageLeaderId = mother.id;
+
+    tickLayerAssign(world, assignContext(world, people));
+
+    expect(child.residenceBuildingId).toBe(mother.residenceBuildingId);
+    expect(father.residenceBuildingId).toBe(home.id);
+    expect(world.eventLog.some((entry) => entry.message.startsWith('Housing audit'))).toBe(false);
+  });
+
+  it('audits custodial separation for a protected manor family', () => {
+    const manor = building(1, BuildingType.LeaderHouse);
+    const cottage = building(2, BuildingType.House);
+    const leader = human(10, { residenceBuildingId: manor.id });
+    const child = human(11, { motherId: leader.id, isJuvenile: true, age: 6, residenceBuildingId: cottage.id });
+
+    // The leader is protected from ordinary assignment, so only the child is movable.
+    const report = assignMissingResidences([child], [manor, cottage], [leader, child]);
+
+    expect(child.residenceBuildingId).toBe(cottage.id);
+    expect(report.violations).toContain(`child #${child.id} lives apart from custodian #${leader.id}`);
+  });
+});
+
+describe('the growth report counts assignable beds', () => {
+  it('states the Leader’s House reservation instead of promising its free beds', () => {
+    const manor = building(1, BuildingType.LeaderHouse);
+    const leader = human(10, { residenceBuildingId: manor.id });
+    const homeless = [human(11), human(12)];
+    const state = worldWith([leader, ...homeless], [manor], 10) as unknown as WorldState & { maxHumanPopulation: number };
+    state.maxHumanPopulation = 100;
+
+    expect(getOpenBeds(state)).toBe(17);
+    expect(getOpenPlayerBeds(state)).toBe(0);
+
+    const report = getPopulationGrowthReport(state);
+    const text = report.reasons.join(' ');
+
+    expect(text).not.toContain('empty beds and');
+    expect(text).toContain('Leader\'s House bed');
+    expect(text).toContain('2 settlers without a bed');
+    expect(report.tone).toBe('warn');
+  });
+});
+
+describe('housing index and family traversal equivalence', () => {
+  const FIXTURE_SEED = 20_260_921;
+
+  function finishedBuilding(id: number, type: BuildingType, overrides: Partial<Building> = {}): Building {
+    const building = createBuilding(type, 100 + id, 100 + id, id);
+    building.completed = true;
+    return Object.assign(building, overrides);
+  }
+
+  let nextFixtureId = 1_000;
+  function settler(residenceBuildingId?: number, overrides: Partial<Entity> = {}): Entity {
+    const id = nextFixtureId++;
+    const human = createEntity(EntityType.Human, 400 + (id % 40), 400 + (id % 40), id, 200, false, {
+      name: `H${id}`,
+      surname: 'Vale',
+      ageYears: overrides.age ?? 30,
+    });
+    human.residenceBuildingId = residenceBuildingId;
+    return Object.assign(human, overrides);
+  }
+
+  // Reference implementations for the diffs below — not production code.
+
+  /** Reference `rebalanceOvercrowdedResidences`: re-filters the whole settler list per residence. */
+  function referenceRebalanceOvercrowdedResidences(humans: Entity[], residences: Building[]): boolean {
+    let evicted = false;
+    for (const residence of residences) {
+      if (isLeaderHouseResidence(residence)) continue;
+      const cap = getResidenceCapacity(residence);
+      const occupants = humans.filter(
+        (h) => h.alive && isPlayerHuman(h) && h.residenceBuildingId === residence.id,
+      );
+      if (occupants.length <= cap) continue;
+
+      const visited = new Set<number>();
+      const familiesInHouse: Entity[][] = [];
+      for (const occupant of occupants.sort((a, b) => a.id - b.id)) {
+        if (visited.has(occupant.id)) continue;
+        familiesInHouse.push(collectFamilyMembers(occupant, occupants, visited));
+      }
+
+      familiesInHouse.sort((a, b) => b.length - a.length);
+
+      const kept = new Set<number>();
+      let count = 0;
+      for (const family of familiesInHouse) {
+        if (count + family.length > cap) continue;
+        for (const member of family) kept.add(member.id);
+        count += family.length;
+      }
+
+      for (const occupant of occupants) {
+        if (!kept.has(occupant.id)) {
+          occupant.residenceBuildingId = undefined;
+          evicted = true;
+        }
+      }
+    }
+    return evicted;
+  }
+
+  function residenceAssignmentById(state: WorldState): Array<[number, number | undefined]> {
+    return state.entities.map((e) => [e.id, e.residenceBuildingId]);
+  }
+
+  function occupantLists(state: WorldState): Array<[number, number[]]> {
+    return state.buildings.map((b) => [b.id, [...b.occupants]]);
+  }
+
+  function newWorld(): WorldState {
+    setSimSeed(FIXTURE_SEED);
+    return initGame({ villageName: 'AUDIT', size: 'medium', seed: FIXTURE_SEED });
+  }
+
+  describe('rebalanceOvercrowdedResidences buckets like its pre-fix per-residence filter', () => {
+    it('evicts identically across two overcrowded residences, including the second one a naive bucket would get wrong', () => {
+      const houseA = finishedBuilding(1, BuildingType.House);
+      const houseB = finishedBuilding(2, BuildingType.House);
+      const manor = finishedBuilding(3, BuildingType.LeaderHouse);
+      const capA = getResidenceCapacity(houseA);
+      const capB = getResidenceCapacity(houseB);
+      expect(capA).toBeGreaterThan(0);
+
+      // Both houses are over capacity; A's eviction happens BEFORE B is examined, which is exactly the
+      // ordering a frozen bucket would have to reproduce.
+      const residents = [
+        ...Array.from({ length: capA + 2 }, () => settler(houseA.id)),
+        ...Array.from({ length: capB + 2 }, () => settler(houseB.id)),
+        // Out-of-order ids and a dead/foreign settler so the predicate and the id sort both matter.
+        settler(houseA.id, { alive: false }),
+        settler(houseB.id, { faction: 'rival' }),
+        settler(undefined),
+        settler(manor.id),
+      ];
+
+      const realWorld = newWorld();
+      realWorld.buildings = [houseB, houseA, manor];
+      realWorld.entities = structuredClone(residents);
+      const referenceWorld = newWorld();
+      referenceWorld.buildings = structuredClone([houseB, houseA, manor]);
+      referenceWorld.entities = structuredClone(residents);
+
+      const realEvicted = rebalanceOvercrowdedResidences(realWorld.entities, realWorld.buildings);
+      const referenceEvicted = referenceRebalanceOvercrowdedResidences(
+        referenceWorld.entities,
+        referenceWorld.buildings,
+      );
+
+      expect(realEvicted, 'the boolean return').toBe(referenceEvicted);
+      expect(realEvicted, 'the fixture must actually evict').toBe(true);
+      expect(residenceAssignmentById(realWorld), 'who stayed where').toEqual(
+        residenceAssignmentById(referenceWorld),
+      );
+      // The leader's household is never overcrowd-evicted, however far over capacity it is.
+      expect(manor.id && realWorld.entities.filter((e) => e.residenceBuildingId === manor.id).length)
+        .toBe(1);
+      // Order of the surviving assignment list is humans order in both worlds — asserted above.
+    });
+
+    it('is a no-op when every residence is within capacity', () => {
+      const house = finishedBuilding(1, BuildingType.House);
+      const residents = Array.from({ length: getResidenceCapacity(house) }, () => settler(house.id));
+      const world = newWorld();
+      world.buildings = [house];
+      world.entities = residents;
+
+      expect(rebalanceOvercrowdedResidences(world.entities, world.buildings)).toBe(false);
+      expect(world.entities.every((e) => e.residenceBuildingId === house.id)).toBe(true);
+    });
+  });
+
+  describe('syncResidenceOccupants accepts the unfiltered alive collection', () => {
+    it('produces the same occupant lists whether the caller pre-filters or not', () => {
+      const house = finishedBuilding(1, BuildingType.House);
+      const mansion = finishedBuilding(2, BuildingType.Mansion);
+      const spareHouse = finishedBuilding(3, BuildingType.House);
+      const farm = finishedBuilding(4, BuildingType.Farm, { occupants: [999] });
+
+      const dead = settler(house.id);
+      dead.alive = false;
+      const foreign = settler(house.id, { faction: 'rival' });
+      const cursed = createEntity(EntityType.Werewolf, 700, 700, 8_001, 600);
+      cursed.moonHowlerCursed = true;
+      cursed.residenceBuildingId = mansion.id;
+      const plainWolf = createEntity(EntityType.Werewolf, 720, 700, 8_002, 600);
+      plainWolf.residenceBuildingId = mansion.id;
+
+      const houseResident = settler(house.id);
+      const mansionResident = settler(mansion.id);
+      const allAlive = [
+        houseResident,
+        mansionResident,
+        cursed,
+        dead,
+        foreign,
+        plainWolf,
+        settler(undefined),
+        settler(farm.id),
+      ];
+
+      // Filtered call shape: the caller filters first, duplicating the callee's own predicate.
+      const filteredWorld = newWorld();
+      filteredWorld.buildings = structuredClone([house, mansion, spareHouse, farm]);
+      filteredWorld.entities = structuredClone(allAlive);
+      syncResidenceOccupants(
+        filteredWorld.entities.filter((e) => e.alive && isResidenceOccupantEntity(e)),
+        filteredWorld.buildings,
+      );
+
+      // Production call shape: the whole collection, as `gameTick` passes `allAlive`.
+      const unfilteredWorld = newWorld();
+      unfilteredWorld.buildings = structuredClone([house, mansion, spareHouse, farm]);
+      unfilteredWorld.entities = structuredClone(allAlive);
+      syncResidenceOccupants(unfilteredWorld.entities, unfilteredWorld.buildings);
+
+      expect(occupantLists(unfilteredWorld), 'occupant ids and order').toEqual(
+        occupantLists(filteredWorld),
+      );
+      // And the lists are the ones the predicate implies — dead/foreign/unassigned are excluded.
+      const byId = new Map(unfilteredWorld.buildings.map((b) => [b.id, b.occupants]));
+      expect(byId.get(house.id)).toEqual([houseResident.id]);
+      // The un-cursed werewolf is NOT an occupant, so the mansion holds only the settler and the
+      // cursed one — in `humans` order.
+      expect(byId.get(mansion.id)).toEqual([mansionResident.id, cursed.id]);
+      expect(byId.get(spareHouse.id)).toEqual([]);
+      expect(byId.get(farm.id)).toEqual([999]);
+    });
+  });
+
+  describe('tryMoveOutOfFamilyHome keeps its single-scan verdict', () => {
+    it('moves an adult child into a fitting empty residence', () => {
+      const familyHome = finishedBuilding(1, BuildingType.House);
+      const emptyHome = finishedBuilding(2, BuildingType.House);
+      const world = newWorld();
+      world.buildings = [familyHome, emptyHome];
+
+      const parent = settler(familyHome.id, { age: 45 });
+      const child = settler(familyHome.id, { age: 22, motherId: parent.id, fatherId: undefined });
+      world.entities = [parent, child];
+
+      expect(tryMoveOutOfFamilyHome(child, world.entities, world.buildings)).toBe(true);
+      expect(child.residenceBuildingId).toBe(emptyHome.id);
+      expect(parent.residenceBuildingId).toBe(familyHome.id);
+    });
+
+    it('reports false and moves nobody when every other residence is occupied', () => {
+      const familyHome = finishedBuilding(1, BuildingType.House);
+      const takenHome = finishedBuilding(2, BuildingType.House);
+      const world = newWorld();
+      world.buildings = [familyHome, takenHome];
+
+      const parent = settler(familyHome.id, { age: 45 });
+      const child = settler(familyHome.id, { age: 22, motherId: parent.id, fatherId: undefined });
+      const stranger = settler(takenHome.id, { age: 40 });
+      world.entities = [parent, child, stranger];
+
+      expect(tryMoveOutOfFamilyHome(child, world.entities, world.buildings)).toBe(false);
+      expect(child.residenceBuildingId).toBe(familyHome.id);
+      expect(stranger.residenceBuildingId).toBe(takenHome.id);
+    });
+
+    it('does not move a minor child out of the family home', () => {
+      const familyHome = finishedBuilding(1, BuildingType.House);
+      const emptyHome = finishedBuilding(2, BuildingType.House);
+      const world = newWorld();
+      world.buildings = [familyHome, emptyHome];
+
+      const parent = settler(familyHome.id, { age: 45 });
+      const minor = settler(familyHome.id, { age: 9, motherId: parent.id, fatherId: undefined });
+      world.entities = [parent, minor];
+
+      expect(tryMoveOutOfFamilyHome(minor, world.entities, world.buildings)).toBe(false);
+      expect(minor.residenceBuildingId).toBe(familyHome.id);
+    });
+  });
+
+
+  describe('indexed family traversal', () => {
+    it('keeps reverse parent links and existing family relationships intact', () => {
+      const mother = settler(undefined, { childrenIds: [] });
+      const child = settler(undefined, { motherId: mother.id, childrenIds: [] });
+      const sibling = settler(undefined, { motherId: mother.id, childrenIds: [] });
+      const unrelated = settler();
+      const humans = [mother, child, sibling, unrelated];
+      const indexed = indexFamilyRelations(humans);
+      const family = collectFamilyMembers(mother, humans, new Set(), indexed);
+      expect(new Set(family.map((member) => member.id))).toEqual(new Set([mother.id, child.id, sibling.id]));
+      expect(collectFamilyMembers(mother, humans, new Set()).map((member) => member.id)).toEqual(family.map((member) => member.id));
+    });
+
+    it('resolves living relatives equally with and without a prebuilt index', () => {
+      const dead = settler(undefined, { alive: false });
+      const living = settler();
+      const humans = [dead, living];
+      const byId = indexFamilyRelations(humans).byId;
+      expect(findLivingHuman(humans, living.id)).toBe(living);
+      expect(findLivingHuman(humans, living.id, byId)).toBe(living);
+      expect(findLivingHuman(humans, dead.id)).toBeUndefined();
+      expect(findLivingHuman(humans, dead.id, byId)).toBeUndefined();
+      expect(findLivingHuman(humans, undefined, byId)).toBeUndefined();
+    });
+
+    it('keeps grouped memberships and ordering stable regardless of input order', () => {
+      const mother = settler(undefined, { childrenIds: [] });
+      const partner = settler(undefined, { partnerId: mother.id, childrenIds: [] });
+      mother.partnerId = partner.id;
+      const daughter = settler(undefined, { motherId: mother.id, childrenIds: [] });
+      const son = settler(undefined, { motherId: mother.id, childrenIds: [] });
+      const otherParent = settler(undefined, { childrenIds: [] });
+      const otherChild = settler(undefined, { fatherId: otherParent.id, childrenIds: [] });
+      const unrelated = settler();
+      const people = [otherChild, son, unrelated, partner, otherParent, daughter, mother];
+      const groups = buildFamilyGroups(people)
+        .map((group) => group.map((member) => member.id).sort((a, b) => a - b));
+      expect(groups).toEqual([
+        [mother.id, partner.id, daughter.id, son.id].sort((a, b) => a - b),
+        [otherParent.id, otherChild.id].sort((a, b) => a - b),
+        [unrelated.id],
+      ]);
+      expect(buildFamilyGroups([...people].reverse())
+        .map((group) => group.map((member) => member.id).sort((a, b) => a - b)))
+        .toEqual(groups);
+    });
+
+    it('preserves independent households across a large disconnected population', () => {
+      const people = Array.from({ length: 600 }, () => settler());
+      const groups = buildFamilyGroups(people);
+      expect(groups).toHaveLength(people.length);
+      expect(groups.every((family) => family.length === 1)).toBe(true);
+      expect(new Set(groups.map((family) => family[0].id)).size).toBe(people.length);
+    });
+  });
+});
+
+describe('L54 dead family scorer', () => {
+  it('no longer exports the unreachable duplicate shared-residence scorer', () => {
+    expect('pickSharedResidenceForFamily' in housingPipeline).toBe(false);
+  });
+});
+
+describe('L55 housing-sharing audit', () => {
+  it('does not count leader housing as an empty ordinary house', () => {
+    const lone = human(1, { x: 100, y: 100, residenceBuildingId: 1 });
+    const partnerA = human(2, { x: 100, y: 100, residenceBuildingId: 1, partnerId: 3 });
+    const partnerB = human(3, { x: 100, y: 100, residenceBuildingId: 1, partnerId: 2 });
+    const humans = [lone, partnerA, partnerB];
+
+    const sharedHouse = finishedBuilding(1, BuildingType.House, { occupants: [1, 2, 3] });
+    const leaderHouse = finishedBuilding(3, BuildingType.LeaderHouse);
+
+    // Leader housing is not an empty ordinary home, so the settler sharing the family home
+    // is not flagged.
+    expect(auditHousingSharingIssues(humans, [sharedHouse, leaderHouse])).toEqual([]);
+
+    // A genuinely empty player house is still reported.
+    const freePlayerHouse = finishedBuilding(4, BuildingType.House);
+    const issues = auditHousingSharingIssues(humans, [sharedHouse, freePlayerHouse]);
+    expect(issues.some((issue) => issue.includes('1 empty house(s) are available'))).toBe(true);
   });
 });

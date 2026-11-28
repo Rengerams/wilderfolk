@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingType } from '../src/game/gameTypes';
+import { BuildingType, LEADER_OCCUPATION } from '../src/game/gameTypes';
 import type { WorldState } from '../src/game/gameTypes';
 import { collectLeaderHousehold, syncLeaderHouseResidency } from '../src/game/leaderHouse';
+import { collectSimulationInvariantErrors } from '../src/game/simulation/simulationInvariants';
 import { building, human } from '../src/test/factories';
 
 describe('leader housing recognizes independent adult children', () => {
@@ -38,5 +39,59 @@ describe('leader housing recognizes independent adult children', () => {
     expect(former.residenceBuildingId).toBe(spouse.residenceBuildingId);
     expect(former.residenceBuildingId).not.toBe(0);
     expect(adult.residenceBuildingId).not.toBe(0);
+  });
+});
+
+describe('M18 leader household composition', () => {
+  it('leaves grown children out of the manor and logs the move-in only once', () => {
+    const leader = human(1, {
+      occupation: LEADER_OCCUPATION,
+      partnerId: 2,
+      childrenIds: [3, 4, 6],
+      residenceBuildingId: 10,
+      age: 45,
+    });
+    const spouse = human(2, { partnerId: 1, residenceBuildingId: 10, age: 43 });
+    const minorChild = human(3, {
+      motherId: 1,
+      fatherId: 2,
+      isJuvenile: true,
+      age: 8,
+      residenceBuildingId: 11,
+    });
+    const marriedChild = human(4, {
+      motherId: 1,
+      fatherId: 2,
+      age: 24,
+      partnerId: 5,
+      residenceBuildingId: 11,
+    });
+    const marriedInLaw = human(5, { partnerId: 4, age: 25, residenceBuildingId: 11 });
+    const singleAdultChild = human(6, {
+      motherId: 1,
+      fatherId: 2,
+      age: 22,
+      residenceBuildingId: 10,
+    });
+    const manor = building(10, BuildingType.LeaderHouse, { occupants: [1, 2, 6] });
+    const house = building(11, BuildingType.House, { occupants: [3, 4, 5] });
+    const state = {
+      entities: [leader, spouse, minorChild, marriedChild, marriedInLaw, singleAdultChild],
+      buildings: [manor, house], villageLeaderId: 1, year: 5, dayInYear: 10, tick: 500, eventLog: [],
+    } as unknown as WorldState;
+
+    syncLeaderHouseResidency(state);
+    syncLeaderHouseResidency(state); // daily reconciliation runs again the next colony day
+
+    expect(minorChild.residenceBuildingId).toBe(10);
+    expect(marriedChild.residenceBuildingId).toBe(11); // married adults keep their own household
+    expect(singleAdultChild.residenceBuildingId).not.toBe(10);
+    expect(manor.occupants).toEqual(expect.arrayContaining([1, 2, 3]));
+    expect(manor.occupants).not.toContain(4);
+    expect(manor.occupants).not.toContain(6);
+    expect(
+      state.eventLog.filter((e) => e.message.includes("moved into the Leader's House")),
+    ).toHaveLength(1);
+    expect(collectSimulationInvariantErrors(state)).toEqual([]);
   });
 });

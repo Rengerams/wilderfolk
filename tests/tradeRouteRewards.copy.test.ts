@@ -3,8 +3,6 @@
  * received map, so no shipped route advertises a zero or missing reward.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { formatResourceAmount, formatResourceAmounts } from '../src/game/resourceTypes';
 import { initTradeRoutes } from '../src/game/economy';
 
@@ -27,14 +25,5 @@ describe('trade-route rewards are rendered from the owner', () => {
       expect(text, `route ${index} advertises nothing`).not.toBe('');
       expect(text, `route ${index} still renders a zero amount`).not.toMatch(/(^|· )0 /);
     }
-  });
-
-  it('keeps the panel on the owner', () => {
-    const panel = readFileSync(
-      resolve(process.cwd(), 'src/components/tabPanels/ProgressTabPanel.tsx'),
-      'utf8',
-    );
-    expect(panel).toContain('formatResourceAmounts(route.resourcesReceived)');
-    expect(panel, 'the gold-or-stone ternary is back').not.toMatch(/resourcesReceived\.gold > 0 \?/);
   });
 });

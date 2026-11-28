@@ -59,7 +59,13 @@ afterEach(resetDialogueSessions);
 describe('forced-line gates use the owner predicate, not the visible-line counter', () => {
   it('control: a free hotelier does speak, so the gate is not a blanket refusal', () => {
     const { state, hotelier } = hotelWorld();
-    expect(firstSpeakingTick(state, hotelier)).not.toBeNull();
+    const speakingTick = firstSpeakingTick(state, hotelier);
+    expect(speakingTick).toEqual(expect.any(Number));
+    expect(speakingTick).toBeGreaterThanOrEqual(0);
+    expect(speakingTick).toBeLessThan(TICKS_PER_DAY);
+    expect(hotelier.chatPhrase).toEqual(expect.any(String));
+    expect(hotelier.chatPhrase!.length).toBeGreaterThan(0);
+    expect(hotelier.chatTicks).toBeGreaterThan(0);
   });
 
   it('an idle half of a live pair does NOT get taken over by a forced line', () => {
@@ -78,6 +84,9 @@ describe('forced-line gates use the owner predicate, not the visible-line counte
 
     // A zero `chatTicks` is not free while the paired session is live.
     expect(hotelier.chatPhrase, 'the paired hotelier must not be interrupted').toBeUndefined();
+    expect(hotelier.chatDialogueSessionKey).toBe('9001:9002');
+    expect(hotelier.chatPartnerId).toBe(9002);
+    expect(hotelier.chatTicks).toBe(0);
   });
 
   it('a hotelier showing a visible line is not interrupted either', () => {
@@ -93,5 +102,6 @@ describe('forced-line gates use the owner predicate, not the visible-line counte
     hotelierGreetGuests(state, hotelier, state.buildings.find((b) => b.id === HOTEL_ID)!);
 
     expect(hotelier.chatPhrase).toBeUndefined();
+    expect(hotelier.chatTicks).toBe(30);
   });
 });

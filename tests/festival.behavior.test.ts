@@ -1,13 +1,14 @@
+import { initGame } from '../src/game/worldGen';
 /**
  * Festival behavior — owner ruling: settlers keep working during a festival, and the gathering
  * window redirects the settlers who are free instead.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { BuildingType, EntityType, JobType, Season, WeatherType } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType, MapSize, Season, WeatherType } from '../src/game/gameTypes';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { gameTick } from '../src/game/gameTick';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, FESTIVAL_CHECK_TICKS } from '../src/game/dayCycle';
-import { DAILY_PHASE_HOURS } from '../src/game/dayCycleClock';
+import { DAILY_PHASE_HOURS, tickAtDailyPhase } from '../src/game/dayCycleClock';
 import { repairStaleFestivalOnLoad, tickFestivals } from '../src/game/dailyWorldEvents';
 import { isFestivalGatheringHour } from '../src/game/humanSchedule';
 import * as simRng from '../src/game/simRng';
@@ -277,4 +278,22 @@ describe('festival lifecycle regressions', () => {
     expect(state.festival?.daysLeft).toBe(3);
   });
 
+});
+
+describe('seasonal festival deferral', () => {
+  it('L13/L14 — a random festival no longer cancels the seasonal festival for a whole season', () => {
+    const world = initGame({ seed: 4242, size: MapSize.Medium });
+    // Day 5 of Spring (the seasonal window starts at day 3) with a random festival still
+    // running: the seasonal festival must defer, not be lost.
+    world.tick = tickAtDailyPhase(5, 'worldEvents') - 1;
+    world.festival = { active: true, name: 'Harvest Festival', daysLeft: 30 };
+    const blocked = gameTick(world);
+    expect(blocked.festival?.name).toBe('Harvest Festival');
+
+    // The random festival ends; the seasonal festival still starts later in the season.
+    blocked.festival = null;
+    blocked.tick = tickAtDailyPhase(6, 'worldEvents') - 1;
+    const later = gameTick(blocked);
+    expect(later.festival?.name).toBe('Spring Revel');
+  });
 });

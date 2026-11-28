@@ -1,11 +1,13 @@
+import { finishedBuilding, human as sharedHuman } from '../src/test/factories';
+import { tickLayerAssign } from '../src/game/tickLayerAssign';
 /**
  * Lifecycle golden contracts — the birth owner must leave valid pregnancy,
  * lineage, event, and same-tick index state on every outcome.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import { EntityType, JobType } from '../src/game/gameTypes';
-import type { Entity, WorldState } from '../src/game/gameTypes';
+import { BuildingType, EntityType, JobType } from '../src/game/gameTypes';
+import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { tickPregnancyAndBirth, LIFECYCLE_CONFIG, isPregnancyHospitalDue } from '../src/game/simulation/humanLifecycle';
 import { advancePregnancy, clearPregnancy, getPregnancyProgressFraction, startPregnancy } from '../src/game/pregnancy';
 import { createEntity } from '../src/game/entityFactory';
@@ -719,6 +721,83 @@ describe('human lifecycle golden contracts', () => {
     // is about the entity-side pregnancy rule, so no village, manor or leader is supplied.
     expect(
       collectSimulationInvariantErrors({ entities: [immigrant], buildings: [] } as unknown as WorldState),
+    ).toEqual([]);
+  });
+});
+
+describe('birth vs the residence invariant', () => {
+  const HOUSE_ID = 500;
+  function birthFixture(): { state: WorldState; ctx: TickContext; mother: Entity; house: Building } {
+    const state = initGame({ skipTerrain: true, seed: FIXTURE_SEED });
+    const house = finishedBuilding(HOUSE_ID, BuildingType.House, {
+      occupants: [MATERNAL_ID, FATHER_ID],
+      width: 40,
+      height: 40,
+    });
+    const mother = sharedHuman(MATERNAL_ID, { x: 100, y: 100,
+      gender: 'female',
+      name: 'Maren',
+      surname: 'Vale',
+      partnerId: FATHER_ID,
+      relationshipStatus: 'expecting',
+      residenceBuildingId: HOUSE_ID,
+      pregnant: true,
+      pregnantById: FATHER_ID,
+      pregnancyProgress: 9,
+      pregnancyDueProgress: 10,
+      reproductionCooldown: 0,
+    });
+    const father = sharedHuman(FATHER_ID, { x: 100, y: 100, gender: 'male',
+      name: 'Erik',
+      surname: 'Vale',
+      partnerId: MATERNAL_ID,
+      relationshipStatus: 'expecting',
+      residenceBuildingId: HOUSE_ID,
+    });
+    state.entities = [mother, father];
+    state.buildings = [house];
+    state.villageLeaderId = null;
+    state.nextEntityId = NEWBORN_ID;
+    state.tick = liveBirthTick();
+
+    const ctx: TickContext = {
+      width: state.width,
+      height: state.height,
+      hourOfDay: 8,
+      season: state.season,
+      grassMult: 1,
+      reproMult: 1,
+      winterPenalty: 1,
+      canHeat: true,
+      byType: byType([mother, father]),
+      aliveEntities: [mother, father],
+      newEntities: [],
+      updatedBuildings: state.buildings,
+      roadBuildings: [],
+      playerHumans: [mother, father],
+      entityById: new Map([[MATERNAL_ID, mother], [FATHER_ID, father]]),
+      buildingById: new Map([[house.id, house]]),
+      predators: [],
+    };
+    return { state, ctx, mother, house };
+  }
+
+  it('leaves a daily-tick newborn inside its residence occupants for the assign layer', () => {
+    const { state, ctx, mother, house } = birthFixture();
+
+    runBirth(state, ctx, mother);
+
+    const child = ctx.newEntities.find((entity) => entity.type === EntityType.Human);
+    expect(child).toBeDefined();
+    expect(child?.residenceBuildingId).toBe(HOUSE_ID);
+
+    // Exercise the residence-occupants owner directly here: assignment is normally scheduled
+    // at 03:00, 09:00, 15:00 and 21:00, not on the daily layer's midnight boundary.
+    tickLayerAssign(state, ctx);
+
+    expect(house.occupants).toContain(child?.id);
+    expect(
+      collectSimulationInvariantErrors({ ...state, entities: [...state.entities, ...ctx.newEntities] }),
     ).toEqual([]);
   });
 });

@@ -1,15 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { scenarioWorld } from './helpers/humanScenario';
+import { decideVirtualPlayerAction } from '../src/game/virtualPlayer';
+import { resetSimRng } from '../src/game/simRng';
+import { describe, expect, it, afterEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
 import type { VisitorGroup, WorldState } from '../src/game/gameTypes';
 import { getAbsoluteCalendarDay } from '../src/game/dayCycle';
 import { TICKS_PER_DAY } from '../src/game/dayCycleClock';
-import {
-  resolveVillageRequest,
+import { resolveVillageRequest,
   tickVillageRequests,
   VILLAGE_REQUEST_PROVISIONS_COST_GOLD,
   VILLAGE_REQUEST_PROVISIONS_FOOD,
-  VILLAGE_REQUEST_PROVISIONS_REPUTATION,
-} from '../src/game/groupEvents';
+  VILLAGE_REQUEST_PROVISIONS_REPUTATION, getVillageRequestEligibility } from '../src/game/groupEvents';
 import { WORKER_CMD_PROTO, applyWorkerCommand, isWorkerCommand } from '../src/game/simWorker/commands';
 import { applySimPrep, extractSimPrep } from '../src/game/simWorker/simPrep';
 import { applySimTickDelta, simTickDeltaFromWorld } from '../src/game/simBuffers/simDelta';
@@ -179,5 +180,70 @@ describe('Village Requests — Caravan Provisions Offer', () => {
     applySimTickDelta(deltaTarget, simTickDeltaFromWorld(state));
     expect(deltaTarget.activeVillageRequest).toEqual(request);
     expect(deltaTarget.villageRequestCooldownUntilDay).toBe(state.villageRequestCooldownUntilDay);
+  });
+});
+
+describe('Village request owner parity', () => {
+  afterEach(resetSimRng);
+
+  describe('L76 — one Village Request eligibility rule', () => {
+    function requestWorld(gold: number, food: number) {
+      const state = scenarioWorld();
+      state.resources.gold = gold;
+      const trader = {
+        id: 'trader-1',
+        kind: 'traders',
+        daysLeft: 5,
+        name: 'Trailhands',
+        campX: 20,
+        campY: 20,
+      } as unknown as WorldState['visitorGroups'][number];
+      state.visitorGroups = [trader];
+      state.activeVillageRequest = {
+        id: 'vreq_1',
+        kind: 'caravan_provisions',
+        sourceVisitorGroupId: trader.id,
+        sourceName: trader.name,
+        emoji: '🥣',
+        title: 'Caravan Provisions Offer',
+        description: 'Test offer',
+        choices: [
+          { id: 'accept', label: 'Accept provisions', detail: 'Pay gold' },
+          { id: 'decline', label: 'Decline politely', detail: 'Lose reputation' },
+        ],
+        expiresDay: 100,
+      };
+      state.resources.food = food;
+      return state;
+    }
+
+    it('gates the accept exactly as the resolver does', () => {
+      const poor = requestWorld(0, 0);
+      const request = poor.activeVillageRequest!;
+      expect(getVillageRequestEligibility(poor, request, 'accept')).toEqual({
+        ok: false,
+        blockReason: 'Need 15 gold',
+      });
+      expect(getVillageRequestEligibility(poor, request, 'decline')).toEqual({ ok: true });
+
+      const wealthy = requestWorld(100, 0);
+      const wealthyRequest = wealthy.activeVillageRequest!;
+      expect(getVillageRequestEligibility(wealthy, wealthyRequest, 'accept')).toEqual({ ok: true });
+    });
+
+    it('refuses a resolver accept the shared gate rejects and leaves the offer open', () => {
+      const state = requestWorld(0, 0);
+      const next = resolveVillageRequest(state, 'vreq_1', 'accept');
+
+      expect(next.resources.gold).toBe(0);
+      expect(next.activeVillageRequest).toBeDefined();
+    });
+
+    it('routes the bot through the owner gate', () => {
+      const state = requestWorld(0, 0);
+      const decision = decideVirtualPlayerAction(state);
+      expect(decision?.command.op).toBe('resolveVillageRequest');
+      expect(decision?.command).toMatchObject({ choice: 'decline' });
+    });
   });
 });

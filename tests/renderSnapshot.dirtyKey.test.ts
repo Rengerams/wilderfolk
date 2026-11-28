@@ -1,3 +1,7 @@
+import { MapSize } from '../src/game/gameTypes';
+import { createInitialView } from '../src/game/viewState';
+import { GameLoop } from '../src/game/gameLoop';
+import { initGame } from '../src/game/gameEngine';
 /**
  * GFX-02/GFX-03: the render snapshot key must cover every preference the snapshot reads, so the
  * F4 logistics overlay and the juice-effects toggle update while the world is paused.
@@ -52,5 +56,28 @@ describe('render snapshot cache identity', () => {
 
     expect(reduced).not.toBe(enhanced);
     saveJuiceEffectsEnabled(true);
+  });
+});
+
+describe('L28 render snapshot dirty key', () => {
+  it('changes when the multi-selection changes even if the primary id does not', () => {
+    const world = initGame({ villageName: 'DirtyKey', size: MapSize.Medium, seed: 4 });
+    const loop = new GameLoop(world, createInitialView(world.width, world.height), () => null);
+    try {
+      const keyOf = () =>
+        (loop as unknown as { snapshotDirtyKey(): string }).snapshotDirtyKey();
+
+      loop.patchView({ selectedEntityId: 7, selectedEntityIds: [7, 8] }, true);
+      const withTwo = keyOf();
+      // Shift-deselect drops the second id; the primary id is unchanged.
+      loop.patchView({ selectedEntityIds: [7] }, true);
+      const withOne = keyOf();
+      expect(withOne).not.toBe(withTwo);
+
+      loop.patchView({ selectedEntityIds: [7, 8] }, true);
+      expect(keyOf()).toBe(withTwo);
+    } finally {
+      loop.stop();
+    }
   });
 });

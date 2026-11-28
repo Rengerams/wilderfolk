@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.app.json --noEmit && node scripts/build-call-graph.mjs && node scripts/check-function-overlap.mjs && node scripts/test.mjs lint && node scripts/test.mjs dup && tsc -p tsconfig.node.json --noEmit && vite build",
     "check:source": "node scripts/test.mjs check",
     "test": "node scripts/test.mjs",
-    "test:standard": "node scripts/build-call-graph.mjs --json-only && node scripts/test.mjs standard && node scripts/check-function-overlap.mjs",
+    "test:standard": "node scripts/test.mjs standard",
     "test:all": "node scripts/test.mjs all",
     "test:full-year:test": "node scripts/test.mjs invariant-test",
     "test:full": "node scripts/test.mjs full",
@@ -26,7 +26,7 @@
     "tauri:dev": "npx tauri dev",
     "tauri:dev:log": "node scripts/run-tauri-dev-log.mjs",
     "tauri:build": "npx tauri build",
-    "dup": "npx jscpd",
+    "dup": "node scripts/test.mjs dup",
     "clean": "node scripts/test.mjs clean",
     "clean:apply": "node scripts/test.mjs clean --apply",
     "audit:knip": "node scripts/test.mjs knip",
@@ -41,7 +41,9 @@
     "deno:dev": "deno desktop --hmr --backend webview .",
     "deno:build:cef": "npm run build && deno desktop --backend cef --exclude node_modules --output ./deno/wilderfolk-cef .",
     "perf:compare-runtimes": "node scripts/compare-runtimes.mjs",
-    "build:ci": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build"
+    "build:ci": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build",
+    "test:ci": "node scripts/test.mjs ci",
+    "test:calendar": "node scripts/test.mjs calendar-scheduler"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.5",

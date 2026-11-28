@@ -2,7 +2,7 @@ import type { Entity, RenffrLetter, RenffrOmen, WorldState } from './gameTypes';
 import { TICKS_PER_DAY, isStartOfClockHour } from './dayCycle';
 import { requestDialogue, dialogueHoursFromNominalTicks } from './dialogueTrees';
 import { isPlayerHuman } from './playerHuman';
-import { getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
+import { createRngFromState, getSimSeed, mulberry32Advance, mulberry32Draw } from './simRng';
 
 const RENFFR_OMEN_SPEAKER_COUNT = 4;
 
@@ -33,15 +33,6 @@ function createRenffrOmen(): RenffrOmen {
     phaseTimer: 0,
     streakT: 0,
     letters,
-  };
-}
-
-/** Deterministic 0..1 roll from world seed + tick — the shared Mulberry32 step (`simRng`). */
-function renffrRng(state: WorldState, salt: number): () => number {
-  let s = renffrSeed(state, salt);
-  return () => {
-    s = mulberry32Advance(s);
-    return mulberry32Draw(s);
   };
 }
 
@@ -76,7 +67,7 @@ function beginRenffrSettlerChatter(state: WorldState, entities: readonly Entity[
   const humans = entities.filter((e) => e.alive && isPlayerHuman(e));
   if (humans.length === 0) return;
 
-  const shuffled = shuffleArray(humans, renffrRng(state, 0x52e1));
+  const shuffled = shuffleArray(humans, createRngFromState(renffrSeed(state, 0x52e1)));
   const count = Math.min(RENFFR_OMEN_SPEAKER_COUNT, shuffled.length);
   for (let i = 0; i < count; i++) {
     requestDialogue({ eventKey: 'renffr.omen', speaker: shuffled[i], tick: state.tick, durationHours: dialogueHoursFromNominalTicks(150), priority: 'scripted', selectionRoll: i / RENFFR_OMEN_SPEAKER_COUNT });

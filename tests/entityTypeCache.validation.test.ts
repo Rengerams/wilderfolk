@@ -1,3 +1,4 @@
+import { EntityType, MapSize } from '../src/game/gameTypes';
 /**
  * The per-world entity-bucket cache must validate against the current population: unchanged →
  * the same bucket object, a spawn between ticks → rebuilt buckets.
@@ -31,5 +32,19 @@ describe('entity-type cache validation', () => {
     // The fingerprint is the bucket total: every alive entity is represented exactly once.
     const total = Object.values(rebuilt).reduce((sum, bucket) => sum + bucket.length, 0);
     expect(total).toBe(aliveAfterSpawn.length);
+  });
+});
+
+describe('fresh world entity buckets', () => {
+  it('L80 — initGame fills entityByType instead of leaving defined-but-empty buckets', () => {
+    const world = initGame({ seed: 3, size: MapSize.Medium });
+    const livingGrass = world.entities.filter(e => e.alive && e.type === EntityType.Grass).length;
+    expect(livingGrass).toBeGreaterThan(0);
+    // `entityByType` is optional on the save-compatibility surface; this test is exactly the
+    // claim that a freshly generated world defines it.
+    expect(world.entityByType).toBeTruthy();
+    const byType = world.entityByType!;
+    expect(byType[EntityType.Grass].length).toBe(livingGrass);
+    expect(byType[EntityType.Rabbit].length).toBe(world.entities.filter(e => e.alive && e.type === EntityType.Rabbit).length);
   });
 });

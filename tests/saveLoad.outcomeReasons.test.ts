@@ -2,11 +2,13 @@
  * A load attempt always says why it failed: `loadGameOutcome` owns the attempt and
  * `describeSaveLoadOutcome` is the one place its message lives; both App load paths read it.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadGameOutcome,
+  buildSaveData,
+  describeSaveReadFailure,
+  loadGameFromFileTextOutcome,
+  parseSaveJson,
   loadGameFromParsed,
   loadGameFromParsedOutcome,
   hasSave,
@@ -14,6 +16,12 @@ import {
   describeSaveLoadOutcome,
 } from '../src/game/saveLoad';
 import { GAME_VERSION } from '../src/game/version';
+import { initGame } from '../src/game/worldGen';
+import { createInitialView } from '../src/game/viewState';
+import { loadAutoSavePreference, saveAutoSavePreference } from '../src/game/preferences';
+import { resetSimRng } from '../src/game/simRng';
+import { SAVE_FORMAT_VERSION } from '../src/game/saveSchema';
+import { MapSize } from '../src/game/gameTypes';
 
 function stubSlot(raw: string | null): void {
   vi.stubGlobal('localStorage', {
@@ -98,21 +106,298 @@ describe('a load attempt always says why it failed', () => {
     stubSlot(null);
     expect(hasSaveSlot()).toBe(false);
   });
+});
 
-  it('routes both App load paths through the owner, with no second copy of the message', () => {
-    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-    // One slot loader, two entry points: `loadFromSlot` reads the owner and names the cause exactly
-    // once, and the menu and the map-setup screen both go through it.
-    expect(app, 'the shared slot loader is gone').toContain('const loadFromSlot = useCallback(');
-    expect(
-      app.match(/loadGameOutcome\(\)/g)?.length ?? 0,
-      'the owner is read from more than one place',
-    ).toBe(1);
-    expect(
-      app.match(/loadFromSlot\(\{/g)?.length ?? 0,
-      'both entry points must load through the shared path',
-    ).toBe(2);
-    expect(app, 'a load path still calls the reason-discarding loader').not.toMatch(/loadGame\(\)/);
-    expect(app, 'the unrestorable message is duplicated in the view').not.toContain('could not be restored');
+interface MemoryStorage {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+}
+
+function memoryStorage(): MemoryStorage {
+  const entries = new Map<string, string>();
+  return {
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => {
+      entries.set(key, value);
+    },
+    removeItem: (key) => {
+      entries.delete(key);
+    },
+  };
+}
+
+let cachedPayload: Record<string, unknown> | null = null;
+
+function realPayload(): Record<string, unknown> {
+  cachedPayload ??= buildPayload();
+  return structuredClone(cachedPayload);
+}
+
+function buildPayload(): Record<string, unknown> {
+  resetSimRng();
+  const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
+  return structuredClone(buildSaveData(world, createInitialView(world.width, world.height)));
+}
+
+describe('persisted save load contract', () => {
+beforeEach(() => {
+  resetSimRng();
+  vi.stubGlobal('localStorage', memoryStorage());
+});
+
+afterEach(() => {
+  resetSimRng();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('game release version is separate from persisted save layout', () => {
+  it('writes the format marker alongside the originating game version', () => {
+    const payload = realPayload();
+    expect(payload._version).toBe(GAME_VERSION);
+    expect(payload._saveFormatVersion).toBe(SAVE_FORMAT_VERSION);
+  });
+
+  it('restores pre-marker saves from v0.6.5.0, v0.6.5.1 and v0.6.5.2', () => {
+    for (const release of ['0.6.5.0', '0.6.5.1', '0.6.5.2']) {
+      const payload = realPayload();
+      delete payload._saveFormatVersion;
+      payload._version = release;
+
+      const loaded = loadGameFromFileTextOutcome(JSON.stringify(payload));
+      expect(loaded.ok, `legacy game v${release}`).toBe(true);
+    }
+  });
+
+  it('restores a newer game release if it still uses this exact format', () => {
+    const payload = realPayload();
+    payload._version = '0.6.5.9';
+    const loaded = loadGameFromFileTextOutcome(JSON.stringify(payload));
+
+    expect(loaded.ok).toBe(true);
+  });
+
+  it('refuses a new format even if its game version is unchanged', () => {
+    const payload = realPayload();
+    payload._saveFormatVersion = SAVE_FORMAT_VERSION + 1;
+    const outcome = loadGameFromFileTextOutcome(JSON.stringify(payload));
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('version-mismatch');
+    expect(outcome.detail).toContain('save format');
+  });
+});
+
+describe('a load adopts the saved auto-save setting without writing the browser preference', () => {
+  it('leaves the player preference alone when the payload disagrees with it', () => {
+    saveAutoSavePreference(true);
+    const payload = realPayload();
+    payload.autoSave = false;
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.world.autoSave).toBe(false);
+    expect(loadAutoSavePreference()).toBe(true);
+  });
+
+  it('leaves the preference alone when the restore is refused', () => {
+    saveAutoSavePreference(false);
+    const payload = realPayload();
+    payload.autoSave = true;
+    payload.entities = null; // genuinely invalid mandatory container
+
+    const outcome = loadGameFromParsedOutcome(payload);
+
+    expect(outcome.ok).toBe(false);
+    expect(loadAutoSavePreference()).toBe(false);
+  });
+});
+
+describe('the file path reports the refusal detail the slot path reports', () => {
+  it('names the field that made a version-matching file unrestorable', () => {
+    const payload = { _version: GAME_VERSION, entities: [], tick: 3 };
+
+    const outcome = loadGameFromFileTextOutcome(JSON.stringify(payload));
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('resources');
+  });
+
+  it('reports a damaged file with the read reason, not a bare failure', () => {
+    const outcome = loadGameFromFileTextOutcome('{ not json');
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('malformed');
+  });
+});
+
+describe('a refusal message describes the cause it actually is', () => {
+  it('calls valid JSON that is not a save a non-save, not invalid JSON', () => {
+    const result = parseSaveJson('null');
+
+    expect(result.valid).toBe(false);
+    if (result.valid) return;
+    expect(result.reason).toBe('not-a-save');
+    expect(describeSaveReadFailure(result)).toContain('not a Wilderfolk save');
+    expect(describeSaveReadFailure(result)).not.toContain('storage');
+  });
+
+  it('calls a JSON object with no version a non-save, not another build', () => {
+    const result = parseSaveJson(JSON.stringify({ settlement: 'not ours' }));
+
+    expect(result.valid).toBe(false);
+    if (result.valid) return;
+    expect(result.reason).toBe('not-a-save');
+    expect(describeSaveReadFailure(result)).toContain('not a Wilderfolk save');
+    expect(describeSaveReadFailure(result)).not.toContain('different build');
+  });
+
+  it('still separates damaged JSON from a save of another build', () => {
+    const malformed = parseSaveJson('{ not json');
+    expect(malformed.valid).toBe(false);
+    if (!malformed.valid) {
+      expect(malformed.reason).toBe('malformed');
+      expect(describeSaveReadFailure(malformed)).toContain('not valid JSON');
+    }
+
+    const otherBuild = parseSaveJson(JSON.stringify({ _version: '0.0.0-ancient' }));
+    expect(otherBuild.valid).toBe(false);
+    if (!otherBuild.valid) {
+      expect(otherBuild.reason).toBe('version-mismatch');
+      expect(describeSaveReadFailure(otherBuild)).toContain('not supported');
+    }
+  });
+});
+
+describe('the entity index exists before every load-time pass that resolves an entity', () => {
+
+
+  it('hands back an index over the loaded colony’s own entities', () => {
+    const outcome = loadGameFromParsedOutcome(realPayload());
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+
+    const living = outcome.world.entities.filter((entity) => entity.alive);
+    expect(living.length).toBeGreaterThan(0);
+    for (const entity of living) {
+      expect(outcome.world.entityById?.get(entity.id)).toBe(entity);
+    }
+  });
+});
+
+describe('the save-loadability probe validates the saved payload', () => {
+  it('parses and validates the saved payload before reporting loadability', () => {
+    resetSimRng();
+    const world = initGame({ skipTerrain: true, seed: 4242, size: MapSize.Medium });
+    stubSlot(JSON.stringify(buildSaveData(world, createInitialView(world.width, world.height))));
+    const parse = vi.spyOn(JSON, 'parse');
+
+    expect(hasSave()).toBe(true);
+    expect(parse).toHaveBeenCalled();
+    parse.mockRestore();
+  });
+
+  it('is false for an empty slot, false for another build, and true for this one', () => {
+    stubSlot(null);
+    expect(hasSave()).toBe(false);
+
+    stubSlot(JSON.stringify({ _version: '0.0.0-ancient', entities: [] }));
+    expect(hasSave()).toBe(false);
+
+    stubSlot(JSON.stringify({ _version: GAME_VERSION, _saveFormatVersion: SAVE_FORMAT_VERSION, entities: [] }));
+    expect(hasSave()).toBe(true);
+  });
+});
+});
+
+describe('a save that would load into a broken world is refused by name', () => {
+  // Built by the real save writer, so the "accepts a well-formed payload" control cannot pass
+  // vacuously on a hand-written stub that is missing half the world.
+  function payload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    const world = initGame({ villageName: 'Broken', seed: 20260924, size: MapSize.Medium });
+    return { ...buildSaveData(world, createInitialView(world.width, world.height)), ...overrides };
+  }
+
+  it('accepts a well-formed payload', () => {
+    expect(loadGameFromParsedOutcome(payload()).ok).toBe(true);
+  });
+
+  it('refuses a non-finite tick, which would stop the daily layer forever', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ tick: 'not-a-number' }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unrestorable');
+    expect(outcome.detail).toContain('tick');
+  });
+
+  it('refuses a non-finite map dimension', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ width: Number.NaN }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('width');
+  });
+
+  it('refuses a purse missing a key, where every affordability test is permanently false', () => {
+    const outcome = loadGameFromParsedOutcome(payload({ resources: { gold: 5, iron: 0 } }));
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('resources');
+  });
+
+  it('refuses a non-finite storage cap', () => {
+    const outcome = loadGameFromParsedOutcome(
+      payload({ storageMax: { wood: 10, stone: 10, food: 10, gold: 10, iron: Number.NaN } }),
+    );
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.detail).toContain('storageMax');
+  });
+
+  it('does not write through to the payload it is handed', () => {
+    // `pickWorldStateFromSave` copies top-level keys by reference, so the returned world's arrays are
+    // the payload's own — and `migrateTickTimeline` scales tick fields in place, mutating the caller.
+    const raid = {
+      id: 'raid_frozen',
+      rivalId: 'rival_1',
+      rivalName: 'Ravenhold',
+      title: 't',
+      description: 'd',
+      emoji: '⚔️',
+      choices: [],
+      createdAtTick: 700,
+      expiresAtTick: 800,
+      marchDistanceTiles: 1,
+      attackerStrength: 1,
+      defenderStrength: 1,
+      lootFood: 0,
+      lootGold: 0,
+      lootWood: 0,
+    };
+    const p = payload({
+      _ticksPerDay: 24,
+      tick: 720,
+      pendingRaidEvents: [raid],
+    });
+    const snapshot = JSON.stringify(p);
+
+    const first = loadGameFromParsedOutcome(p);
+    expect(first.ok).toBe(true);
+    // The caller's own object is untouched…
+    expect(JSON.stringify(p)).toBe(snapshot);
+    expect((p.pendingRaidEvents as (typeof raid)[])[0].createdAtTick).toBe(700);
+
+    // …so a second load of the same payload produces the same world rather than scaling again.
+    const second = loadGameFromParsedOutcome(p);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.world.tick).toBe(first.world.tick);
+    expect(second.world.pendingRaidEvents).toEqual(first.world.pendingRaidEvents);
   });
 });

@@ -26,7 +26,7 @@ Two things, and the defect is the gap between them:
 2. **Under the approved cutover**, the single catalog factor is the sole trait rule at each migrated decision, inside the `0.85..1.15` band, with no second legacy multiplier beside it. Brave keeps two distinct contexts (reach and closing speed) and Timid keeps one, so each site is still priced once and each trait still has a real, measurable effect.
 
 ## Reproduction steps
-1. `docker compose -f docker-compose.base44.yml exec -T web npx vitest run tests/personality.defenseIntegration.test.ts` on `971b23c6` — passes, because the flight test only asserted `factor > 1`.
+1. `npx vitest run tests/personality.defenseIntegration.test.ts` on `971b23c6` — passes, because the flight test only asserted `factor > 1`.
 2. Evaluate the same contexts directly: `evaluateTraitInfluence({ traits: ['brave'] }, { kind: 'danger', activity: 'hunting' }).factor`, `… { kind: 'danger', activity: 'escape' }` for Timid.
 3. Compare with the literals the two consuming files multiplied in before the migration (1.25, 1.2, 1.35).
 

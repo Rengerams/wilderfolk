@@ -1,9 +1,11 @@
+import { addGeneratedSocialHuman } from '../src/test/factories';
+import { initGame } from '../src/game/worldGen';
 /**
  * Owner rulings: a settler holds at most six friends, and a feud that starts must end visibly.
  */
 import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../src/game/gameTypes';
-import { FRIEND_CLOSE_THRESHOLD, MAX_CLOSE_FRIENDS_PER_SETTLER, advanceSocialRelationships, relationshipScore, friendCount, reconcileCloseFriendships } from '../src/game/relationships';
+import { FRIEND_CLOSE_THRESHOLD, MAX_CLOSE_FRIENDS_PER_SETTLER, advanceSocialRelationships, relationshipScore, friendCount, reconcileCloseFriendships, startFeud } from '../src/game/relationships';
 import { DAYS_PER_YEAR, TICKS_PER_DAY } from '../src/game/dayCycle';
 import { human } from '../src/test/factories';
 import { genomeFrom } from './helpers/genome';
@@ -133,5 +135,27 @@ describe('a feud that starts is announced as settled', () => {
 
     expect(started, 'the pulse opened feuds').toBeGreaterThan(0);
     expect(messages(world, 'have settled their feud'), `started ${started}`).toBe(started);
+  });
+});
+
+describe('relationship webs — feuds', () => {
+  it('startFeud opens a mutual feud and logs', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    const a = addGeneratedSocialHuman(w, { id: 1 });
+    const b = addGeneratedSocialHuman(w, { id: 2 });
+    startFeud(w, a, b, 35);
+    expect(relationshipScore(a, b.id, 'feud')).toBe(35);
+    expect(relationshipScore(b, a.id, 'feud')).toBe(35);
+  });
+
+  it('feuds decay and drain energy over days', () => {
+    const w = initGame({ villageName: 'P7', size: 'medium' });
+    const a = addGeneratedSocialHuman(w, { id: 1 });
+    const b = addGeneratedSocialHuman(w, { id: 2 });
+    startFeud(w, a, b, 35);
+    const e0 = a.energy ?? 80;
+    for (let d = 0; d < 3; d++) advanceSocialRelationships(w, w.entities);
+    expect(relationshipScore(a, b.id, 'feud')).toBeLessThan(35);
+    expect((a.energy ?? 80)).toBeLessThan(e0);
   });
 });

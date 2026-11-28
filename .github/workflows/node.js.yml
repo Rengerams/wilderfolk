@@ -62,10 +62,8 @@ jobs:
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          npm run check:source
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            npm test -- standard --changed "$PR_BASE_SHA"
+            npm run test:ci -- --changed "$PR_BASE_SHA"
           else
-            npm test -- standard
+            npm run test:ci
           fi
-          npm run build

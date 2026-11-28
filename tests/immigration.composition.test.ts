@@ -1,3 +1,4 @@
+import { MapSize } from '../src/game/gameTypes';
 import { HUMAN_ADULT_MIN_AGE as HUMAN_MOVE_OUT_MIN_AGE } from '../src/game/daycycleconstants';
 import { HUMAN_ADULT_MIN_AGE } from '../src/game/daycycleconstants';
 /**
@@ -9,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Immigration } from '../src/game/gameConstants';
 import { setSimSeed } from '../src/game/simRng';
-import { createImmigrantSettler } from '../src/game/worldGen';
+import { createImmigrantSettler, initGame } from '../src/game/worldGen';
 import type { Entity, WorldState } from '../src/game/gameTypes';
 
 /** Minimal world: `createImmigrantSettler` only reads the id counter and the calendar. */
@@ -129,5 +130,21 @@ describe('immigration party composition', () => {
     expect(member.age).toBeLessThanOrEqual(Immigration.YOUTH_AGE_MAX);
     expect(member.age).toBeLessThan(HUMAN_MOVE_OUT_MIN_AGE);
     expect(member.age).toBeLessThan(HUMAN_ADULT_MIN_AGE);
+  });
+});
+
+describe('generated immigrant families respect available beds', () => {
+  it('L12 — createImmigrantSettler already caps a family at the passed slot count', () => {
+    const world = initGame({ seed: 77, size: MapSize.Medium });
+    // With a single free slot the family roll is impossible, so the "admit only 1 of a couple"
+    // repair in tickImmigration could never run: the cap is applied at the source.
+    for (let i = 0; i < 120; i++) {
+      expect(createImmigrantSettler(world, 600, 450, 1).length).toBe(1);
+    }
+    let sawCouple = false;
+    for (let i = 0; i < 300 && !sawCouple; i++) {
+      sawCouple = createImmigrantSettler(world, 600, 450, 2).length === 2;
+    }
+    expect(sawCouple).toBe(true);
   });
 });

@@ -1,16 +1,17 @@
+import { resetSimRng } from '../src/game/simRng';
+import { formatResourceAmounts } from '../src/game/resourceTypes';
+import { MapSize } from '../src/game/gameTypes';
 /**
  * The visitor trade buttons must be gated by the owner `groupEvents.getVisitorTradeEligibility`, which
  * also rejects a leaving caravan, a group out of gold, and insufficient storage for what it receives.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { initGame } from '../src/game/worldGen';
-import {
-  getRefugeeChoiceEligibility,
+import { getRefugeeChoiceEligibility,
   getVisitorTradeEligibility,
   getVisitorTradeTerms,
-  VISITOR_TRADE_COSTS,
-} from '../src/game/groupEvents';
-import type { WorldState } from '../src/game/gameTypes';
+  VISITOR_TRADE_COSTS, tradeWithVisitors } from '../src/game/groupEvents';
+import type { WorldState, VisitorGroup } from '../src/game/gameTypes';
 
 const FIXTURE_SEED = 20_260_917;
 const GROUP_ID = 'visitors-1';
@@ -119,4 +120,152 @@ describe('legacy refugee choice eligibility (R5)', () => {
   });
 
 
+});
+
+describe('Stone trade and resource amount formatting', () => {
+  /**
+   * A minimal world with a player trader and the given store, built from `initGame` so every field the
+   * owners read exists. The trader is the shared fixture for the two stone-trade cases.
+   */
+  function traderWorld(resources: Partial<WorldState['resources']> = {}): WorldState {
+    const world = initGame({ villageName: 'Stone', seed: 20260921, size: MapSize.Medium });
+    world.visitorGroups = [
+      {
+        id: 'trader-1',
+        name: 'Traders',
+        kind: 'traders',
+        daysLeft: 3,
+        gold: 500,
+        campX: 100,
+        campY: 100,
+        tradesCompleted: 0,
+        giftsGiven: 0,
+      } as unknown as WorldState['visitorGroups'][number],
+    ];
+    world.resources = { wood: 100, stone: 100, food: 100, gold: 500, iron: 50, ...resources };
+    world.storageMax = { wood: 5000, stone: 5000, food: 5000, gold: 5000, iron: 5000 };
+    return world;
+  }
+
+  describe('visitor trade can buy and sell stone (audit: no stone route to a caravan)', () => {
+    it('quotes both stone actions from the owner', () => {
+      // Reputation deliberately at the neutral band, so the multipliers are 1 and the raw catalogue
+      // prices are what these assertions read.
+      const world = traderWorld();
+      world.villageReputation = 50;
+      const buy = getVisitorTradeTerms(world, 'buy_stone');
+      expect(buy.effectivePay.gold).toBe(20);
+      expect(buy.effectiveReceive.stone).toBe(25);
+
+      const sell = getVisitorTradeTerms(world, 'sell_stone');
+      expect(sell.effectivePay.stone).toBe(35);
+      expect(sell.effectiveReceive.gold).toBe(20);
+    });
+
+    it('gates them like every other action — price, then what the store can take', () => {
+      const affordable = traderWorld({ gold: 100 });
+      affordable.villageReputation = 50;
+      expect(getVisitorTradeEligibility(affordable, 'trader-1', 'buy_stone').ok).toBe(true);
+
+      const broke = traderWorld({ gold: 0 });
+      broke.villageReputation = 50;
+      const brokeGate = getVisitorTradeEligibility(broke, 'trader-1', 'buy_stone');
+      expect(brokeGate.ok).toBe(false);
+      expect(brokeGate.blockReason).toBe('Need 20💰');
+
+      // Selling needs the stone *and* room for the gold it pays — the same two-sided gate as sell_iron.
+      const noStone = traderWorld({ stone: 0 });
+      noStone.villageReputation = 50;
+      expect(getVisitorTradeEligibility(noStone, 'trader-1', 'sell_stone').ok).toBe(false);
+
+      const fullPurse = traderWorld();
+      fullPurse.villageReputation = 50;
+      fullPurse.storageMax.gold = 500;
+      fullPurse.resources.gold = 500;
+      const fullGate = getVisitorTradeEligibility(fullPurse, 'trader-1', 'sell_stone');
+      expect(fullGate.ok).toBe(false);
+      expect(fullGate.blockReason).toBe('Cannot store more gold');
+    });
+
+    it('retains both legacy stone trade command keys in the catalogue', () => {
+      // The command validator derives its accepted actions from this table, so an action missing here
+      // is rejected as an invalid `WorkerCommand` before it reaches the owner.
+      expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('buy_stone');
+      expect(Object.keys(VISITOR_TRADE_COSTS)).toContain('sell_stone');
+
+
+    });
+  });
+
+  describe('a multi-resource trade float names every resource, not only the last', () => {
+    it('accumulates instead of overwriting', () => {
+      // The two-resource trade bundles are why the float accumulates; the formatter is what it now
+      // reads, so this pins the exact string a two-resource deal produces.
+      expect(formatResourceAmounts({ gold: 30, iron: 15 })).toBe('30 💰 · 15 🔩');
+      expect(formatResourceAmounts({ stone: 80, gold: 60 })).toBe('80 🪨 · 60 💰');
+      // A single-resource deal is unchanged from the old `+N<emoji>` shape apart from the separator.
+      expect(formatResourceAmounts({ wood: 30 })).toBe('30 🪵');
+      expect(formatResourceAmounts({})).toBe('');
+    });
+
+
+  });
+});
+
+describe('Visitor trade command validation', () => {
+  afterEach(resetSimRng);
+
+  function trader(overrides: Partial<VisitorGroup> = {}): VisitorGroup {
+    return {
+      id: 'trader-1',
+      name: 'The Brass Kettle Caravan',
+      kind: 'traders',
+      entityIds: [],
+      campX: 320,
+      campY: 280,
+      daysLeft: 4,
+      giftsGiven: 0,
+      tradesCompleted: 0,
+      gold: 80,
+      refugeeResolved: false,
+      leaderTalked: false,
+      ...overrides,
+    };
+  }
+
+  function tradeCommandWorld(): WorldState {
+    const state = initGame({ skipTerrain: true });
+    state.visitorGroups = [trader()];
+    return state;
+  }
+
+  describe('groupEvents visitor trade uses the economy owners', () => {
+    it('refuses a trade priced in a resource the world does not hold instead of writing NaN', () => {
+      const state = tradeCommandWorld();
+      // A missing resource key must count as 0 and never put NaN into the purse.
+      (state.resources as unknown as Record<string, number | undefined>).gold = undefined;
+
+      const next = tradeWithVisitors(state, 'trader-1', 'buy_food');
+
+      expect(Number.isNaN(next.resources.gold as unknown as number)).toBe(false);
+      expect(next.resources.gold).toBeUndefined();
+      expect(next.visitorGroups[0]?.tradesCompleted).toBe(0);
+      expect(next.floatingTexts.some((f) => f.text.includes('💰'))).toBe(true);
+    });
+
+    it('refuses a purchase with no storage headroom before taking any payment (L32)', () => {
+      const state = tradeCommandWorld();
+      state.resources.gold = 500;
+      state.resources.food = state.storageMax.food;
+
+      const next = tradeWithVisitors(state, 'trader-1', 'buy_food');
+
+      expect(next.resources.gold).toBe(500);
+      expect(next.resources.food).toBe(state.resources.food);
+      expect(next.visitorGroups[0]?.tradesCompleted).toBe(0);
+      expect(
+        next.bigNews.some((news) => news.message.includes('not enough storage space')),
+      ).toBe(false);
+    });
+  });
 });

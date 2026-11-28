@@ -1,7 +1,5 @@
 import { BuildingType } from './gameTypes';
 import type { BuildingRotation, CornerRotation } from './buildingRotation';
-import { normalizeCornerRotation } from './buildingRotation';
-import { cornerArms } from './stripJunction';
 import type { JunctionKind, StripJunctionInfo } from './stripJunction';
 import { getSpriteFrame } from './spriteLoader';
 import { seeded } from './renderer/shared';
@@ -190,7 +188,7 @@ function paintRpgStoneStrip(
 }
 
 /** Top-down cobble road — uses the hand-made path pieces with procedural fallback. */
-export function drawProceduralRoad(
+function drawProceduralRoad(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
@@ -280,7 +278,7 @@ export function drawProceduralWall(
 }
 
 /** Light wooden fence — thin posts + two rails, reads as a tidy boundary. */
-export function drawProceduralFence(
+function drawProceduralFence(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
@@ -340,44 +338,8 @@ function drawPalisadePosts(
   }
 }
 
-/** L-shaped palisade corner — rotation picks which quadrant is open. */
-export function drawProceduralWallCorner(
-  ctx: CanvasRenderingContext2D,
-  sx: number,
-  sy: number,
-  w: number,
-  h: number,
-  rotation: CornerRotation,
-  alpha = 1,
-): void {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(sx, sy);
-  const size = Math.max(w, h);
-  const half = size / 2;
-  const arm = size * 0.46;
-  const thick = size * 0.34;
-  const r = normalizeCornerRotation(rotation);
-
-  const arms = cornerArms(r);
-  if (arms.north) {
-    drawPalisadeArm(ctx, half - thick, -half - arm, thick, arm + half, true);
-  }
-  if (arms.south) {
-    drawPalisadeArm(ctx, half - thick, half, thick, arm + half, true);
-  }
-  if (arms.east) {
-    drawPalisadeArm(ctx, half - arm, -half, arm + half, thick, true);
-  }
-  if (arms.west) {
-    drawPalisadeArm(ctx, -half - arm, -half, arm + half, thick, true);
-  }
-
-  ctx.restore();
-}
-
 /** Wider cobble cap where road segments meet (tee / cross / elbow). */
-export function drawProceduralRoadJunction(
+function drawProceduralRoadJunction(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,

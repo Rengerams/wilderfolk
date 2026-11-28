@@ -1,10 +1,8 @@
 /**
  * The alert strip keeps every `critical` alert on screen; only non-critical overflow collapses.
- * Selection is pure and pinned here; the chip's non-colour marker is pinned by source (node tier).
+ * Selection is pure and pinned here; the chip's non-colour marker is pinned by the source guards.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { PriorityAlert, PriorityAlertSeverity } from '../src/game/priorityAlerts';
 import { collapsedAlertCount, visibleAlertChips } from '../src/components/AlertBar';
 
@@ -49,16 +47,4 @@ describe('the priority strip never collapses a critical alert', () => {
   });
 });
 
-describe('a critical chip says so without relying on its colour', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/components/AlertBar.tsx'), 'utf8');
 
-  it('renders a named marker on the critical chip', () => {
-    expect(source).toMatch(/alert\.severity === 'critical'/);
-    expect(source).toMatch(/aria-label=\{CRITICAL_MARKER\.name\}/);
-  });
-
-  it('routes the strip through the collapse owner rather than slicing the list itself', () => {
-    expect(source).toMatch(/visibleAlertChips\(alerts, expanded\)/);
-    expect(source).not.toMatch(/alerts\.slice\(/);
-  });
-});

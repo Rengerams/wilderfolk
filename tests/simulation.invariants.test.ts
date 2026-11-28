@@ -385,3 +385,34 @@ describe('assertion wrapper and purity', () => {
     expect(world.buildings[1].occupants).toEqual([1]);
   });
 });
+
+describe('N-27 — the leadership invariant also covers the null-leader case', () => {
+  it('reports a human still labelled leader while villageLeaderId is unset', () => {
+    const world = state([human(1, { occupation: LEADER_OCCUPATION })], [], null);
+
+    const errors = collectSimulationInvariantErrors(world);
+
+    expect(errors.some((error) => error.includes('villageLeaderId is unset but human'))).toBe(true);
+  });
+});
+
+describe('Moon Howler invariant scan (L64)', () => {
+  it('L64 — asserts the owner rule and names every offending howler', () => {
+    // The scan is the collector's report of `moonHowler.countActiveMoonHowlerCurses`.
+    expect(collectSimulationInvariantErrors(state([human(1, { moonHowlerCursed: true })], []))).toEqual([]);
+
+    const errors = collectSimulationInvariantErrors(
+      state([1, 2, 3].map(id => human(id, { moonHowlerCursed: true })), []),
+    );
+    expect(
+      errors.filter((e) => e.includes('multiple living Moon Howlers')),
+    ).toEqual(['multiple living Moon Howlers: 3 (1, 2, 3)']);
+
+    // A dead cursed settler is not a living curse.
+    expect(
+      collectSimulationInvariantErrors(
+        state([human(4, { alive: false, moonHowlerCursed: true }), human(5, { moonHowlerCursed: true })], []),
+      ),
+    ).toEqual([]);
+  });
+});

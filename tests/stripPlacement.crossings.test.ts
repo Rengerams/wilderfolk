@@ -4,8 +4,10 @@ import { BUILDING_CONFIGS, BuildingType, MapSize } from '../src/game/gameTypes';
 import type { Building, WorldState } from '../src/game/gameTypes';
 import { getBuildingFootprintForType } from '../src/game/buildingRotation';
 import { buildStripPreview, placeStripChain, getPlaceBuildingFailureReason } from '../src/game/buildingPlacementActions';
+import { resolveWallStripPlan } from '../src/game/stripTopology';
 import { canPlaceBuilding } from '../src/game/placementUtils';
 import type { RenderSnapshot } from '../src/game/renderSnapshot';
+import type { StripSegment } from '../src/game/stripBuild';
 
 function worldFor(type: BuildingType): WorldState {
   const world = initGame({ size: MapSize.Medium, seed: 20261026 });
@@ -128,5 +130,148 @@ describe('long bridge construction', () => {
     expect(refused.buildings).toEqual(w.buildings);
     expect(refused.resources).toEqual(w.resources);
     expect(refused.floatingTexts.length).toBeGreaterThan(w.floatingTexts.length);
+  });
+});
+
+/** The load-time oracle for the counter (`saveLoad.ts`), restated here as the test's expectation. */
+function completedPlayerBuildings(world: WorldState): number {
+  return world.buildings.filter((b) => b.completed).length;
+}
+
+/** A spot where a Wall and the Gate that replaces it both pass the placement owner's own checks. */
+function findReplacementSpot(world: WorldState): { x: number; y: number } {
+  for (let y = 40; y < world.height - 40; y += 20) {
+    for (let x = 40; x < world.width - 40; x += 20) {
+      if (getPlaceBuildingFailureReason(world, BuildingType.Wall, x, y, 0) != null) continue;
+      if (getPlaceBuildingFailureReason(world, BuildingType.WallGate, x, y, 0) != null) continue;
+      return { x, y };
+    }
+  }
+  throw new Error('no buildable Wall→Gate spot in this world');
+}
+
+/** A real world holding one completed player Wall that a Gate run can land on. */
+function worldWithCompletedWall(seed: number): { world: WorldState; wall: Building } {
+  const world = initGame({ size: MapSize.Medium, seed });
+  world.unlockedTechs = [...world.unlockedTechs, 'defense_1'];
+  world.researchNodes = world.researchNodes.map((node) =>
+    node.id === 'defense_1' ? { ...node, researched: true } : node,
+  );
+
+  const spot = findReplacementSpot(world);
+  const footprint = getBuildingFootprintForType(BuildingType.Wall, 0);
+  const wall: Building = {
+    id: world.nextBuildingId++,
+    type: BuildingType.Wall,
+    x: spot.x,
+    y: spot.y,
+    width: footprint.width,
+    height: footprint.height,
+    occupants: [],
+    level: 1,
+    constructionProgress: 100,
+    completed: true,
+    health: 100,
+    maxHealth: 100,
+    spriteScale: 1,
+    buildAnimTimer: 0,
+  } as Building;
+
+  world.buildings.push(wall);
+  world.totalBuildingsCompleted = completedPlayerBuildings(world);
+  return { world, wall };
+}
+
+function gateSegmentReplacing(wall: Building): StripSegment {
+  return {
+    x: wall.x,
+    y: wall.y,
+    valid: true,
+    placeType: BuildingType.WallGate,
+    rotation: 0,
+    replacesBuildingId: wall.id,
+  };
+}
+
+describe('Wall→Gate replacement bookkeeping (B-1)', () => {
+  it('leaves totalBuildingsCompleted equal to the load-time recompute, not inflated by one', () => {
+    const { world, wall } = worldWithCompletedWall(20260920);
+    const before = completedPlayerBuildings(world);
+
+    const next = placeStripChain(world, BuildingType.WallGate, [gateSegmentReplacing(wall)], 0);
+
+    expect(next.buildings.some((b) => b.id === wall.id)).toBe(false);
+    expect(next.buildings.some((b) => b.type === BuildingType.WallGate)).toBe(true);
+    // One completed building left, one incomplete gate arrived.
+    expect(next.totalBuildingsCompleted).toBe(before - 1);
+    expect(next.totalBuildingsCompleted).toBe(completedPlayerBuildings(next));
+  });
+});
+
+describe('replacement refund respects the storage cap (E-5)', () => {
+  it('credits nothing when the wood store is already full', () => {
+    const { world, wall } = worldWithCompletedWall(20260921);
+    const cap = world.storageMax.wood;
+    world.resources.wood = cap;
+
+    const next = placeStripChain(world, BuildingType.WallGate, [gateSegmentReplacing(wall)], 0);
+
+    expect(next.resources.wood).toBeLessThanOrEqual(cap);
+    // No headroom at refund time, so the accepted refund is 0: only the gate's own cost is paid.
+    expect(next.resources.wood).toBe(cap - BUILDING_CONFIGS[BuildingType.WallGate].cost.wood);
+  });
+
+  it('still credits the half refund when the store has room', () => {
+    const { world, wall } = worldWithCompletedWall(20260922);
+    world.resources.wood = 100;
+
+    const next = placeStripChain(world, BuildingType.WallGate, [gateSegmentReplacing(wall)], 0);
+
+    const refund = Math.floor(BUILDING_CONFIGS[BuildingType.Wall].cost.wood * 0.5);
+    expect(next.resources.wood).toBe(100 + refund - BUILDING_CONFIGS[BuildingType.WallGate].cost.wood);
+  });
+});
+
+describe('M29/M30 — wall strips replace gates, never stack on them', () => {
+  it('a gate dropped on a wall replaces it and refunds half the wall', () => {
+    const { world: state, wall } = worldWithCompletedWall(20240913);
+    const spot = wall;
+    state.resources.wood = 200;
+    state.resources.stone = 200;
+    state.resources.gold = 200;
+
+    const preview = buildStripPreview(state, BuildingType.WallGate, spot.x, spot.y, spot.x, spot.y, 0);
+    expect(preview.segments).toHaveLength(1);
+    expect(preview.segments[0].replacesBuildingId).toBe(wall.id);
+    expect(preview.segments[0].valid).toBe(true);
+
+    const next = placeStripChain(state, BuildingType.WallGate, preview.segments, 0);
+
+    expect(next.buildings.some((b) => b.id === wall.id)).toBe(false);
+    expect(next.buildings.some((b) => b.type === BuildingType.WallGate)).toBe(true);
+    // Gate cost (18 wood / 28 stone / 8 gold) offset by half the replaced wall (8 wood / 14 stone).
+    expect(next.resources.wood).toBe(200 - 18 + 4);
+    expect(next.resources.stone).toBe(200 - 28 + 7);
+    expect(next.resources.gold).toBe(200 - 8);
+  });
+
+  it('a wall run steps over an existing gate instead of refusing the whole run', () => {
+    const state = initGame({ size: 'medium', seed: 20240913 });
+    state.buildings = [];
+    completedStrip(state, BuildingType.WallGate, 300, 300);
+
+    const plan = resolveWallStripPlan(
+      state,
+      BuildingType.Wall,
+      [
+        { x: 240, y: 300 },
+        { x: 300, y: 300 },
+        { x: 360, y: 300 },
+      ],
+      0,
+    );
+
+    expect(plan.map((piece) => piece.x)).toEqual([240, 360]);
+    expect(plan.some((piece) => piece.replacesBuildingId !== undefined)).toBe(false);
   });
 });

@@ -1,111 +1,20 @@
-/**
- * Phase 7 regression tests — relationship webs (friendships, feuds),
- * apprenticeships, and family legacy (dynasties + the chronicle chapter).
- */
 import { describe, it, expect, vi } from 'vitest';
 import * as commuteReach from '../src/game/commuteReach';
 import { initGame } from '../src/game/worldGen';
-import { createEntity } from '../src/game/entityFactory';
-import { EntityType, BuildingType, JobType } from '../src/game/gameTypes';
-import { advanceSocialRelationships, relationshipScore, startFeud, friendCount } from '../src/game/relationships';
+import { BuildingType, JobType, type Building } from '../src/game/gameTypes';
 import { advanceApprenticeships, getApprenticeTrainingSite } from '../src/game/apprenticeships';
 import { addToConstructionCrew, assignWorkerInPlace, assignWorkerTransition, staffConstructionCrews } from '../src/game/workforce';
 import { SCHOOL_GRADUATION_DAYS, SCHOOL_FULL_EDUCATION_DAYS } from '../src/game/education';
-import { computeDynasties, hasDynasty } from '../src/game/familyLegacy';
-import { advanceValleyChronicle } from '../src/game/valleyChronicle';
-import type { Building, Entity, WorldState } from '../src/game/gameTypes';
-
-function makeWorld(): WorldState {
-  return initGame({ villageName: 'P7', size: 'medium' });
-}
-
-function addHuman(
-  w: WorldState,
-  opts: {
-    id: number;
-    name?: string;
-    surname?: string;
-    generation?: number;
-    isJuvenile?: boolean;
-    workerBuildingId?: number;
-    job?: JobType;
-    x?: number;
-    y?: number;
-  },
-): Entity {
-  const e = createEntity(
-    EntityType.Human,
-    opts.x ?? 300,
-    opts.y ?? 300,
-    opts.id,
-    80,
-    opts.isJuvenile ?? false,
-    {
-      name: opts.name ?? `H${opts.id}`,
-      surname: opts.surname,
-      generation: opts.generation,
-      ageYears: opts.isJuvenile ? 8 : 18,
-    },
-  );
-  if (opts.workerBuildingId != null) e.workerBuildingId = opts.workerBuildingId;
-  if (opts.job) e.job = opts.job;
-  e.alive = true;
-  e.maxEnergy = 100;
-  w.entities.push(e);
-  return e;
-}
-
-describe('relationship webs — friendships', () => {
-  it('shared home grows a friendship each day', () => {
-    const w = makeWorld();
-    const a = addHuman(w, { id: 1, workerBuildingId: 10 });
-    const b = addHuman(w, { id: 2, workerBuildingId: 10 });
-    expect(relationshipScore(a, b.id, 'friend')).toBe(0);
-    advanceSocialRelationships(w, w.entities);
-    expect(relationshipScore(a, b.id, 'friend')).toBeGreaterThanOrEqual(0.5);
-    expect(relationshipScore(a, b.id, 'friend')).toBe(relationshipScore(b, a.id, 'friend'));
-  });
-
-  it('strong friendships count for the UI badge', () => {
-    const w = makeWorld();
-    const a = addHuman(w, { id: 1, workerBuildingId: 10 });
-    const b = addHuman(w, { id: 2, workerBuildingId: 10 });
-    a.friendships = { [`friend_${b.id}`]: 70 };
-    b.friendships = { [`friend_${a.id}`]: 70 };
-    expect(friendCount(a)).toBe(1);
-  });
-});
-
-describe('relationship webs — feuds', () => {
-  it('startFeud opens a mutual feud and logs', () => {
-    const w = makeWorld();
-    const a = addHuman(w, { id: 1 });
-    const b = addHuman(w, { id: 2 });
-    startFeud(w, a, b, 35);
-    expect(relationshipScore(a, b.id, 'feud')).toBe(35);
-    expect(relationshipScore(b, a.id, 'feud')).toBe(35);
-  });
-
-  it('feuds decay and drain energy over days', () => {
-    const w = makeWorld();
-    const a = addHuman(w, { id: 1 });
-    const b = addHuman(w, { id: 2 });
-    startFeud(w, a, b, 35);
-    const e0 = a.energy ?? 80;
-    for (let d = 0; d < 3; d++) advanceSocialRelationships(w, w.entities);
-    expect(relationshipScore(a, b.id, 'feud')).toBeLessThan(35);
-    expect((a.energy ?? 80)).toBeLessThan(e0);
-  });
-});
+import { addGeneratedSocialHuman } from '../src/test/factories';
 
 describe('apprenticeships', () => {
   it('guarantees Tier 3 scholars a place under an available grandmaster, even after age 24', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 75 };
-    const scholar = addHuman(w, { id: 2 });
+    const scholar = addGeneratedSocialHuman(w, { id: 2 });
     scholar.age = 26;
     scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     scholar.educated = true;
@@ -141,15 +50,15 @@ describe('apprenticeships', () => {
   });
 
   it('gives a Tier 3 scholar priority over an ordinary apprentice', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const scholar = addHuman(w, { id: 2 });
+    const scholar = addGeneratedSocialHuman(w, { id: 2 });
     scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     scholar.educated = true;
-    const ordinary = addHuman(w, { id: 3 });
+    const ordinary = addGeneratedSocialHuman(w, { id: 3 });
     ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
     ordinary.educated = true;
     w.buildings.push({
@@ -163,19 +72,19 @@ describe('apprenticeships', () => {
   });
 
   it('does not let a busy ordinary master block an available grandmaster at the same workplace', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 60 };
-    const grandmaster = addHuman(w, { id: 5, job: JobType.Farmer });
+    const grandmaster = addGeneratedSocialHuman(w, { id: 5, job: JobType.Farmer });
     grandmaster.skills = { [JobType.Farmer]: 90 };
-    const ordinary = addHuman(w, { id: 3 });
+    const ordinary = addGeneratedSocialHuman(w, { id: 3 });
     ordinary.schoolDays = SCHOOL_GRADUATION_DAYS;
     ordinary.educated = true;
     ordinary.apprenticeOfId = master.id;
     master.apprenticeId = ordinary.id;
-    const scholar = addHuman(w, { id: 2 });
+    const scholar = addGeneratedSocialHuman(w, { id: 2 });
     scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     scholar.educated = true;
     w.buildings.push({
@@ -190,13 +99,13 @@ describe('apprenticeships', () => {
   });
 
   it('releases an employed scholar from another workplace so she can attend her master', () => {
-    const world = makeWorld();
+    const world = initGame({ villageName: 'P7', size: 'medium' });
     world.entities = [];
     world.buildings = [];
-    const master = addHuman(world, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(world, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
     master.workerBuildingId = 10;
-    const scholar = addHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
+    const scholar = addGeneratedSocialHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
     scholar.age = 26;
     scholar.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     scholar.educated = true;
@@ -235,10 +144,10 @@ describe('apprenticeships', () => {
   });
 
   it('keeps apprentices out of automatic construction crews', () => {
-    const world = makeWorld();
+    const world = initGame({ villageName: 'P7', size: 'medium' });
     world.entities = [];
     world.buildings = [];
-    const apprentice = addHuman(world, { id: 2 });
+    const apprentice = addGeneratedSocialHuman(world, { id: 2 });
     apprentice.apprenticeOfId = 1;
     const unfinished = {
       id: 30, type: BuildingType.House, x: 300, y: 300, width: 60, height: 60,
@@ -252,12 +161,12 @@ describe('apprenticeships', () => {
   });
 
   it('repairs a previously bonded apprentice who was given a competing job', () => {
-    const world = makeWorld();
+    const world = initGame({ villageName: 'P7', size: 'medium' });
     world.entities = [];
     world.buildings = [];
-    const master = addHuman(world, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(world, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const apprentice = addHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
+    const apprentice = addGeneratedSocialHuman(world, { id: 2, workerBuildingId: 20, job: JobType.Lumberjack });
     apprentice.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     apprentice.educated = true;
     master.apprenticeId = apprentice.id;
@@ -279,14 +188,14 @@ describe('apprenticeships', () => {
   });
 
   it('a master may train a qualified adult after school', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     // Isolate this apprenticeship from generated founders and workplaces: they may
     // reuse fixture ids or claim apprentices before the farm under test.
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 60 };
-    const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
+    const kid = addGeneratedSocialHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
     kid.schoolDays = SCHOOL_GRADUATION_DAYS;
     kid.educated = true;
@@ -322,12 +231,12 @@ describe('apprenticeships', () => {
   });
 
   it('only teaches after both apprentice and mentor attend the same production site', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const apprentice = addHuman(w, { id: 2, x: 310, y: 310 });
+    const apprentice = addGeneratedSocialHuman(w, { id: 2, x: 310, y: 310 });
     apprentice.skills = { [JobType.Farmer]: 10 };
     const farm = {
       id: 80, type: BuildingType.Farm, x: 300, y: 300, width: 60, height: 60,
@@ -356,11 +265,11 @@ describe('apprenticeships', () => {
   });
 
   it('will not route a juvenile into an adult apprenticeship even with an old saved bond', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 10, job: JobType.Farmer });
-    const child = addHuman(w, { id: 11, isJuvenile: true });
+    const master = addGeneratedSocialHuman(w, { id: 10, job: JobType.Farmer });
+    const child = addGeneratedSocialHuman(w, { id: 11, isJuvenile: true });
     master.skills = { [JobType.Farmer]: 95 };
     master.apprenticeId = child.id;
     child.apprenticeOfId = master.id;
@@ -379,14 +288,14 @@ describe('apprenticeships', () => {
   });
 
   it('an apprentice graduates at skill 50 and both bonds clear', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     // Isolate this apprenticeship from generated founders and workplaces: they may
     // reuse fixture ids or claim apprentices before the farm under test.
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, x: 300, y: 300, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 100 };
-    const kid = addHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
+    const kid = addGeneratedSocialHuman(w, { id: 3, x: 310, y: 310, isJuvenile: false });
     kid.age = 18;
     kid.schoolDays = SCHOOL_GRADUATION_DAYS;
     kid.educated = true;
@@ -424,12 +333,12 @@ describe('apprenticeships', () => {
 
 describe('apprenticeship eligibility reconciliation', () => {
   it('opens a fresh bounded commute pass before matching', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const student = addHuman(w, { id: 2 });
+    const student = addGeneratedSocialHuman(w, { id: 2 });
     student.educated = true;
     student.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
     w.buildings.push({ id: 10, type: BuildingType.Farm, x: 300, y: 300,
@@ -449,14 +358,14 @@ describe('apprenticeship eligibility reconciliation', () => {
   });
 
   it('skips already-skilled and imprisoned scholars and trains an eligible scholar instead', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const skilled = addHuman(w, { id: 2 });
-    const prisoner = addHuman(w, { id: 4 });
-    const eligible = addHuman(w, { id: 6 });
+    const skilled = addGeneratedSocialHuman(w, { id: 2 });
+    const prisoner = addGeneratedSocialHuman(w, { id: 4 });
+    const eligible = addGeneratedSocialHuman(w, { id: 6 });
     for (const person of [skilled, prisoner, eligible]) {
       person.educated = true;
       person.schoolDays = SCHOOL_FULL_EDUCATION_DAYS;
@@ -474,12 +383,12 @@ describe('apprenticeship eligibility reconciliation', () => {
   });
 
   it('awards the intermediate diploma bonus only to the trained trade', () => {
-    const w = makeWorld();
+    const w = initGame({ villageName: 'P7', size: 'medium' });
     w.entities = [];
     w.buildings = [];
-    const master = addHuman(w, { id: 1, job: JobType.Farmer });
+    const master = addGeneratedSocialHuman(w, { id: 1, job: JobType.Farmer });
     master.skills = { [JobType.Farmer]: 90 };
-    const student = addHuman(w, { id: 3 });
+    const student = addGeneratedSocialHuman(w, { id: 3 });
     student.educated = true;
     student.schoolDays = 135;
     student.skills = { [JobType.Farmer]: 49.9 };
@@ -498,33 +407,5 @@ describe('apprenticeship eligibility reconciliation', () => {
     expect(student.skills?.[JobType.Farmer]).toBeLessThan(59);
     expect(student.skills?.[JobType.Teacher]).toBeUndefined();
     expect(student.apprenticeOfId).toBeUndefined();
-  });
-});
-
-describe('family legacy — dynasties', () => {
-  it('three living generations of one surname is a dynasty', () => {
-    const w = makeWorld();
-    addHuman(w, { id: 1, surname: 'Vale', generation: 1 });
-    addHuman(w, { id: 2, surname: 'Vale', generation: 2 });
-    addHuman(w, { id: 3, surname: 'Vale', generation: 3 });
-    const dynasties = computeDynasties(w);
-    expect(dynasties[0]).toMatchObject({ surname: 'Vale', generationsAlive: 3, members: 3 });
-    expect(hasDynasty(w)).toBe(true);
-  });
-
-  it('two generations is not yet a dynasty', () => {
-    const w = makeWorld();
-    addHuman(w, { id: 1, surname: 'Vale', generation: 1 });
-    addHuman(w, { id: 2, surname: 'Vale', generation: 2 });
-    expect(hasDynasty(w)).toBe(false);
-  });
-
-  it('the chronicle unlocks the A Dynasty chapter', () => {
-    const w = makeWorld();
-    addHuman(w, { id: 1, surname: 'Vale', generation: 1 });
-    addHuman(w, { id: 2, surname: 'Vale', generation: 2 });
-    addHuman(w, { id: 3, surname: 'Vale', generation: 3 });
-    const newly = advanceValleyChronicle(w);
-    expect(newly).toContain('a_dynasty');
   });
 });

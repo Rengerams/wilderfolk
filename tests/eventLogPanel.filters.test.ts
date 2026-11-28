@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { EVENT_LOG_FILTER_OPTIONS, getEventLogFilterLabel } from '../src/game/eventLogFilters';
 import type { GameEventLog } from '../src/game/gameTypes';
-
-const panelSource = (): string =>
-  readFileSync(resolve(process.cwd(), 'src/game/EventLogPanel.tsx'), 'utf8');
 
 /**
  * Every event type the game can write, declared once as a `Record` keyed by the union, so a new
@@ -49,18 +44,13 @@ describe('Chronicle filter options', () => {
   });
 });
 
-describe('a shell handover reaches the open log window', () => {
-  it('adopts a changed initialFilter while the window stays mounted', () => {
-    const source = panelSource();
-    expect(source).toContain('filterChoice.handedOver === initialFilter');
-    expect(source).not.toContain('useEffect');
-  });
-
-  it('downloads the stored Chronicle the footer promises, not the active category', () => {
-    const source = panelSource();
-    for (const format of ['downloadChronicleLog', 'downloadChronicleJSON', 'downloadChronicleCSV']) {
-      expect(source, `${format} still exports the filtered list`).not.toContain(`${format}(allFiltered, meta)`);
-      expect(source).toContain(`${format}(events, meta)`);
+describe('R30 — the chronicle header names the filter the dropdown names', () => {
+  it('labels every filter with the dropdown text, never the raw stored id', () => {
+    for (const option of EVENT_LOG_FILTER_OPTIONS) {
+      expect(getEventLogFilterLabel(option.id), `filter ${option.id}`).toBe(option.label);
     }
+    // `death` is the stored id; the header must print the dropdown label, never the id.
+    expect(getEventLogFilterLabel('death')).not.toBe('death');
+    expect(getEventLogFilterLabel('all')).toBe('All');
   });
 });

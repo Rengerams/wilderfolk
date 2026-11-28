@@ -145,10 +145,13 @@ describe('pregnancy at work and at the hospital', () => {
     const { world, farmer, farm } = farmWorld(due * 0.84, due);
     runTicks(world, 1);
     const before = farmer.schedulePresentTicksToday ?? 0;
+    const workedBefore = farmer.scheduleWorkedTicksToday ?? 0;
     expect(before).toBeGreaterThan(0);
+    expect(farmer.schedulePresentSiteIdToday).toBe(farm.id);
     farmer.pregnancyProgress = due * 0.85;
     runTicks(world, 1);
     expect(farmer.schedulePresentTicksToday).toBe(before);
+    expect(farmer.scheduleWorkedTicksToday).toBeGreaterThan(workedBefore);
     expect(farmer.workerBuildingId).toBe(farm.id);
   });
 
@@ -163,10 +166,12 @@ describe('pregnancy at work and at the hospital', () => {
   });
 
   it('credits real work below the threshold with the same staffed hospital standing by', () => {
-    const { world, farmer } = farmWorld(PREGNANCY_TICKS * 0.84);
+    const { world, farmer, farm } = farmWorld(PREGNANCY_TICKS * 0.84);
     runTicks(world, 3);
 
     expect(farmer.schedulePresentTicksToday ?? 0).toBeGreaterThan(0);
-    expect(farmer.scheduleWorkedTicksToday ?? 0).toBeGreaterThan(0);
+    expect(farmer.scheduleWorkedTicksToday ?? 0).toBeGreaterThanOrEqual(farmer.schedulePresentTicksToday ?? 0);
+    expect(farmer.schedulePresentSiteIdToday).toBe(farm.id);
+    expect(farmer.workerBuildingId).toBe(farm.id);
   });
 });

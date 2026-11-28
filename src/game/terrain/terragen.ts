@@ -30,14 +30,13 @@ import {
   clamp,
   fbm,
   hash2,
-  hashString,
   lerp,
-  mulberry32,
   ridged,
   ridgedMulti,
   smoothRange,
   warp,
 } from './noise';
+import { createRngFromState, hashSalt } from '../simRng';
 
 /** Global decor density multiplier (Teraforge `decorDensity` default). */
 const DECOR_DENSITY = 1.2;
@@ -91,12 +90,16 @@ function latitudeCooling(x: number, y: number, rows: number, seed: number, span:
   return clamp(tri + wobble * LATITUDE_EDGE_FREQ, 0, 1) * span;
 }
 
+/** Nearest-rank sample from an already sorted terrain field; preserves the historical rounded index. */
+function sortedPercentile(sorted: Float32Array, p: number): number {
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
+}
+
 /** Raw [0,1] heights → `spread` × [0,1], water line mapped to its own quantile. */
 function spreadHeights(raw: Float32Array, seaLevel: number): { heights: Float32Array; seaLevel: number } {
   const sorted = Float32Array.from(raw).sort();
-  const at = (p: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
-  const low = at(HEIGHT_SPREAD_LOW_PCT);
-  const high = at(HEIGHT_SPREAD_HIGH_PCT);
+  const low = sortedPercentile(sorted, HEIGHT_SPREAD_LOW_PCT);
+  const high = sortedPercentile(sorted, HEIGHT_SPREAD_HIGH_PCT);
   const span = high - low;
   if (!(span > 1e-6)) return { heights: raw, seaLevel };
 
@@ -122,14 +125,13 @@ function moistureCuts(
   forestWant: number,
 ): { forest: number; darkForest: number } {
   const sorted = Float32Array.from(field).sort();
-  const at = (p: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
   const q = lerp(
     MOISTURE_FOREST_QUANTILE_MAX,
     MOISTURE_FOREST_QUANTILE_MIN,
     clamp(forestWant, 0, 1),
   );
-  const forest = at(q);
-  const darkForest = Math.max(forest + 0.04, at(q + (1 - q) * MOISTURE_DARK_FOREST_SHARE));
+  const forest = sortedPercentile(sorted, q);
+  const darkForest = Math.max(forest + 0.04, sortedPercentile(sorted, q + (1 - q) * MOISTURE_DARK_FOREST_SHARE));
   return { forest, darkForest };
 }
 
@@ -824,7 +826,7 @@ function placeDecorations(
   tileType: (x: number, y: number) => TerrainType, generationVersion: 1 | 2 | 3 | 4,
   ecotoneFields?: EcotoneTerrainFields,
 ): TerrainDecoration[] {
-  const rand = mulberry32(seed ^ 0x2b7c19);
+  const rand = createRngFromState(seed ^ 0x2b7c19);
   const decorations: TerrainDecoration[] = [];
 
   for (let y = 0; y < rows; y++)
@@ -914,12 +916,12 @@ const SIZE_TERRAIN_SEED_OFFSET: Record<MapSize, number> = {
  * before the offsets existed can still be regenerated as the valley its owner played.
  */
 export function legacyTerrainSeed(seed: number): number {
-  return hashString(String(seed)) >>> 0;
+  return hashSalt(String(seed)) >>> 0;
 }
 
 /**
  * The terrain noise seed for a world. A save's own `terrainSeed` wins outright, so retuning the offset
- * (or `hashString`, or the size table) cannot repaint an existing valley.
+ * (or `hashSalt`, or the size table) cannot repaint an existing valley.
  */
 function terrainSeedFor(
   seed: number,
@@ -927,7 +929,7 @@ function terrainSeedFor(
   terrainSeed?: number,
 ): number {
   if (typeof terrainSeed === 'number' && Number.isFinite(terrainSeed)) return terrainSeed >>> 0;
-  return (hashString(String(seed)) + SIZE_TERRAIN_SEED_OFFSET[size]) >>> 0;
+  return (hashSalt(String(seed)) + SIZE_TERRAIN_SEED_OFFSET[size]) >>> 0;
 }
 
 export function generateRawTerrain(

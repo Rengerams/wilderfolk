@@ -3,8 +3,6 @@
  * (`describeHospitalReputation`), which every UI site renders and whose numbers come from the owner.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { Building, Entity, WorldState } from '../src/game/gameTypes';
 import { BuildingType, EntityType, Season, WeatherType } from '../src/game/gameTypes';
 import { PRODUCTION_INTERVAL, TICKS_PER_DAY } from '../src/game/dayCycle';
@@ -109,19 +107,4 @@ describe('A15 — the hospital reputation rule has one owner', () => {
     expect(patient.energy, 'fixture premise: the ward round actually treated the patient').toBeGreaterThan(0);
   });
 
-  it('leaves both UI sites on the owner and neither restating the amount', () => {
-    const sites = [
-      'src/components/SelectedBuildingPanel.tsx',
-      'src/components/tabPanels/MoreTabPanel.tsx',
-    ];
-    for (const site of sites) {
-      const source = readFileSync(resolve(process.cwd(), site), 'utf8');
-      expect(source, `${site} does not render the owner's description`).toMatch(/describeHospitalReputation\(\)/);
-      expect(source, `${site} restates the interval amount`).not.toMatch(/reputation every 5 days/);
-    }
-
-    const economy = readFileSync(resolve(process.cwd(), 'src/game/dailyBuildingEconomy.ts'), 'utf8');
-    expect(economy, 'dailyBuildingEconomy still issues the hospital grant').not.toMatch(/addReputation\(state, 2\)/);
-    expect(economy, 'dailyBuildingEconomy does not call the owner').toMatch(/grantHospitalIntervalReputation\(/);
-  });
 });

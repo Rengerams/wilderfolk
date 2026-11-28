@@ -111,3 +111,20 @@ describe('village happiness', () => {
     expect(computeVillageHappiness(grid, [{ x: 55, y: 55 }])).toBe(100);
   });
 });
+
+describe('M2 — a beauty-free grid keeps the caller where they are', () => {
+  const flatGrid = { cols: 12, rows: 12, values: new Array(144).fill(0) };
+
+  it('returns the given position when no tile has beauty', () => {
+    expect(pickBeautySpot(flatGrid as never, 250, 250)).toEqual({ x: 250, y: 250 });
+  });
+
+  it('still steers to the prettiest tile when there is one', () => {
+    const values = new Array(144).fill(0);
+    const gx = 1;
+    const gy = 1;
+    values[gy * 12 + gx] = 5;
+    const spot = pickBeautySpot({ cols: 12, rows: 12, values } as never, PATH_CELL / 2, PATH_CELL / 2);
+    expect(spot).toEqual({ x: (gx + 0.5) * PATH_CELL, y: (gy + 0.5) * PATH_CELL });
+  });
+});
